@@ -1,5 +1,7 @@
 # compiler
-
+import argparse
+import os
+from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr
 INTEGER ,PLUS, DIV, SUB, MULT, EOF = 'integer', 'plus', 'div', 'subtract','mult', 'eof'
 LPARAN, RPARAN = '(', ')'
 class Token:
@@ -42,6 +44,12 @@ class Lexer:
         self.curr_pos = 0
         self.curr_char = self.strcode[self.curr_pos]
 
+    def raise_error(self, msg, exit):
+        if exit:
+            raise Exception(msg)
+        else:
+             print(msg)
+
     def consume_char(self):
         curr_char = self.curr_char
         self.curr_pos += 1
@@ -69,6 +77,7 @@ class Lexer:
     
     def get_next_token(self):
         while self.curr_char != EOF:
+            print(self.curr_char)
             if self.is_whitespace():
                 self.skip_whitespace()
                 continue
@@ -99,6 +108,9 @@ class Lexer:
             if self.curr_char == ')':
                 self.consume_char()
                 return Token(RPARAN, ')')
+            
+            self.raise_error(f'Unrecognized syntax "{self.curr_char}" at position {self.curr_pos }', exit=1)
+
             
         return Token(EOF,EOF)
             
@@ -193,28 +205,89 @@ class Interpreter:
             return node.value
 
 
-def compile_ast(root):
-    pass
+class Compile:
+    def __init__(self) -> None:
+        self.asmFile = './compile.asm'
+        self.asmList = []
+        # self.all_available_regs = { "r8", "r9", "r10", "r11" }
+
+    def get_required_pre_asm(self):
+        ##############
+        #try to optimize this rather than extending and creating of large list
+        ############## 
+        self.asmList.append(printintinstr)
+        self.asmList.append(startinstr)
+    
+    def get_required_post_asm(self):
+        self.asmList.append(exitinstr.format(0))
+
+    def __gen_code_binary_op(self, opA, opB, otype):
+        # self.__get_free_reg()
+        if otype == PLUS:
+            self.asmList.append(addinstr)
+        if otype == SUB:
+            self.asmList.append(subinstr)
+        if otype == MULT:
+            self.asmList.append(multinstr)
+        if otype == DIV:
+            self.asmList.append(divinstr)
+            
+
+    def __gen_code_numliteral(self, num):
+        self.asmList.append(numlitinstr.format(num))
 
 
+    def visit(self, node):
+        if isinstance(node, BinOp):
+            if node.token.type == PLUS:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), PLUS)
+            if node.token.type == SUB:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), SUB)
+            if node.token.type == DIV:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), DIV)
+            if node.token.type == MULT:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), MULT)
+            
+        if isinstance(node, NumLiteral):
+            self.__gen_code_numliteral(node.value) 
 
+    def write_asm(self):
+        with open(self.asmFile, 'w') as asm:
+            asm.writelines('\n'.join(self.asmList))
+
+    def compile_ast(self, root):
+        self.get_required_pre_asm()
+        self.visit(root)
+        self.get_required_post_asm()
+        self.write_asm()
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', help='File to run')
+    parser.add_argument('-sim', dest='sim', action='store_true',help='Simulate it')
+    parser.add_argument('-compile', dest='compile', action='store_true', help='Compiile it')
+    return parser.parse_args()
 
 def main():
-    lexer  = Lexer('1+')
+    args = parse_args()
+    code = open(args.file, 'r').read()
+    lexer  = Lexer(code)
+    # lexer  = Lexer(' (5/2)')
     parser = Parser(lexer=lexer)
     root = parser.parse()
-    ir = Interpreter(root=root)
-    print(ir.interpret())
-
-
-    compile_ast(root)
+    if args.sim:
+        ir = Interpreter(root=root)
+        print(ir.interpret())
+    elif args.compile:
+        compiler = Compile()
+        compiler.compile_ast(root)
+        os.system('nasm -f elf64 -o hello.o compile.asm && ld -o hello hello.o && ./hello')
     
    
 
 
 if __name__ == '__main__':
     main()
-
 
 
 
