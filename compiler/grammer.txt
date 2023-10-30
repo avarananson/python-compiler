@@ -1,2 +1,22 @@
-# Grammer of the langauge
 
+prog : statements
+
+statements: var_declare  | statement
+
+var_declare: type IDENTIFIER (( = expr ;) | ;)
+
+statement: IDENTIFIER = expr ; 
+
+expr: term ((PLUS | MINUS) term)*
+
+term: factor ((MUL | DIV) factor)*
+
+factor : PLUS factor
+        | MINUS factor
+        | INTEGER
+        | LPAREN expr RPAREN
+        | IDENTIFIER
+
+IDENTIFIER: variable
+
+type: int
