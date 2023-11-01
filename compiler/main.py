@@ -6,9 +6,11 @@ INTEGER ,PLUS, DIV, SUB, MULT, EOF = 'integer', '+', '/', '-','*', 'eof'
 LPARAN, RPARAN, ASSIGN, SEMICOLON = '(', ')', '=', ';'
 DATATYPE = 'datatype'
 IDENTIFIER = 'identifier'
+PRINT = 'print'
 
 #Define supported datatypes
 DATATYPES = set(['int'])
+RESERVED_KEYWORDS = set([PRINT])
 class Token:
     def __init__(self, type, value):
         self.type = type
@@ -20,18 +22,37 @@ class Token:
 class AST:
     pass
 
+class Print:
+    def __init__(self, value) -> None:
+        self.value = value
+    def __str__(self) -> str:
+        return(f'PrintValue: {self.value}')
+    
+        
 class Main:
     def __init__(self) -> None:
         self.children = []
-        
-class Identifier:
-    def __init__(self, name_node, type_node, value_node) -> None:
-        self.name = name_node
+
+class Var:
+    def __init__(self, name) -> None:
+        self.name = name
+    def __str__(self) -> str:
+        return(f'Var: {self.name}')
+            
+class VarDeclare:
+    def __init__(self, type_node, var_node , value_node) -> None:
+        self.var = var_node
         self.type = type_node
         self.value = value_node
-
     def __str__(self) -> str:
-        return(f'Token : Name : {self.name} , {self.type}, Value : {self.value}')
+        return(f'VarDeclare : {self.var}, Value : {self.value}, Type : {self.type}')
+
+class VarAssign:
+    def __init__(self ,var_node, expr) -> None:
+        self.var = var_node
+        self.right_expr = expr
+    def __str__(self) -> str:
+        return(f'VarAssign : Name : {self.var} , right_expr : {self.right_expr}')
 
         
 class BinOp(AST):
@@ -108,23 +129,33 @@ class Lexer:
         NOTE: use this function throughout
         '''
         pass
+    def is_comment(self):
+        if self.curr_char == '/' and self.peek() == '/':
+            return True
+        return False
+    
+    def skip_comments(self):
+        while self.curr_char != EOF and self.curr_char != '\n': 
+            self.consume_char()
 
     def get_next_token(self):
         while self.curr_char != EOF:
             if self.is_whitespace():
                 self.skip_whitespace()
                 continue
-
+            if self.is_comment():
+                self.skip_comments()
+                continue
             if self.curr_char.isdigit():
                 return Token(INTEGER, self.integer())
             
             if self.curr_char.isalpha():
                 token_word = self.get_next_token_word()
                 if token_word in DATATYPES:
-                    
                     return Token(DATATYPE ,token_word)
+                elif token_word in RESERVED_KEYWORDS:
+                    return Token(token_word ,token_word)
                 else:
-                    print(token_word)
                     return Token(IDENTIFIER, token_word)
             
             if self.curr_char == PLUS:
@@ -178,7 +209,7 @@ class Parser:
 
     def consume_token(self, TYPE):
         if self.curr_token.type != TYPE:
-            print(self.curr_token ,TYPE)
+            # print(self.curr_token ,TYPE)
             self.raise_error(f'Syntax error at position {self.lexer.curr_pos }', exit=1)
         else:
             self.curr_token = self.lexer.get_next_token()
@@ -195,37 +226,74 @@ class Parser:
         _statements = []
         # print(self.curr_token)
         while self.curr_token.type != EOF:
+            # print('in HHH', self.curr_token)
             if self.curr_token.type == DATATYPE:
                 # print(self.curr_token)
                 _statements.append(self.var_declare())
+            elif self.curr_token.type == IDENTIFIER:
+                _statements.append(self.var_assign())
+            elif self.curr_token.type == PRINT:
+                
+                _statements.append(self.eprint())
+            else:
+                self.raise_error(f'Unrecognized statement {self.curr_token} .', exit=1)
+
         return _statements
+
+    def eprint(self):
+        self.consume_token(PRINT)
+        self.consume_token(LPARAN)
+        print_node = Print(self.expr())
+        self.consume_token(RPARAN)
+        self.consume_token(SEMICOLON)
+        return print_node
+
+
+    def var_assign(self):
+        curr_tok_var = Var(self.curr_token.value)
+        self.consume_token(IDENTIFIER)
+        self.consume_token(ASSIGN)
+        expr_node = self.expr()
+        varassign = VarAssign(curr_tok_var, expr_node)
+        self.consume_token(SEMICOLON)
+        return varassign
 
     def var_declare(self):
         curr_tok_dt = self.curr_token
         self.consume_token(DATATYPE)
-        curr_tok_var = self.curr_token
+        curr_tok_var = Var(self.curr_token.value)
         self.consume_token(IDENTIFIER)
+        
         if self.curr_token.type == ASSIGN:
             self.consume_token(ASSIGN)
-            node = self.expr()
-            identifier = Identifier(curr_tok_var, curr_tok_dt , node)
+            expr_node = self.expr()
+            # identifier = Identifier(curr_tok_var, curr_tok_dt , node)
+            varassign = VarAssign(curr_tok_var, expr_node)
+            vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  varassign)
         else:
-            identifier = Identifier(curr_tok_var, curr_tok_dt , None)
+            # identifier = Identifier(curr_tok_var, curr_tok_dt , None)
+            vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  None)
             
         self.consume_token(SEMICOLON)
-        return identifier
+        return vardecl
     
 
     def factor(self):
+        # print()
         if self.curr_token.type == LPARAN:
             self.consume_token(LPARAN)
             node = self.expr()
             self.consume_token(RPARAN)
             return node
-        else:
+        elif self.curr_token.type == INTEGER:
             token = self.curr_token
             self.consume_token(INTEGER)
             return NumLiteral(token.value)
+        elif self.curr_token.type == IDENTIFIER:
+            token = self.curr_token
+            self.consume_token(IDENTIFIER)
+            return Var(token.value)
+
 
     def term(self):
         node = self.factor()
@@ -267,9 +335,14 @@ class Parser:
 class Interpreter:
     def __init__(self, root) -> None:
         self.root = root
+        self.__SYMBOL_TABLE = {}
     
     def interpret(self):
-        return self.visit(self.root)
+        for child in self.root.children:
+            self.visit(child)
+        # print(self.__SYMBOL_TABLE)
+        # print(self.__SYMBOL_TABLE['x'].value)
+
 
     def visit(self, node):
 
@@ -279,12 +352,33 @@ class Interpreter:
             if node.token.type == SUB:
                 return (self.visit(node.lchild) -  self.visit(node.rchild))
             if node.token.type == DIV:
-                return (self.visit(node.lchild) /  self.visit(node.rchild))
+                return (self.visit(node.lchild) //  self.visit(node.rchild))
             if node.token.type == MULT:
                 return (self.visit(node.lchild) *  self.visit(node.rchild))
             
         if isinstance(node, NumLiteral):
             return node.value
+         
+        if isinstance(node, VarDeclare):
+            node_name = node.var.name
+            self.__SYMBOL_TABLE[node_name] = node
+            value = self.visit(node.value) if node.value else None
+            node.value = value
+            # self.__SYMBOL_TABLE[node_name] = node
+
+        if isinstance(node, VarAssign):
+            node_name = node.var.name
+            value = self.visit(node.right_expr) 
+            # node.value = value
+            self.__SYMBOL_TABLE[node_name].value = value
+            return value
+
+        if isinstance(node , Var):
+            return self.__SYMBOL_TABLE[node.name].value
+        
+        if isinstance(node ,Print):
+            print(self.visit(node.value))
+
 
 
 class Compile:
@@ -329,7 +423,7 @@ class Compile:
                 self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), DIV)
             if node.token.type == MULT:
                 self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), MULT)
-            
+        
         if isinstance(node, NumLiteral):
             self.__gen_code_numliteral(node.value) 
 
@@ -364,8 +458,6 @@ def main():
                 break
         # return
     lexer  = Lexer(code)
-    # lexer  = Lexer(' (5/2)')
-    # return
     parser = Parser(lexer=lexer)
     root = parser.parse()
     if args.debug:
@@ -373,7 +465,7 @@ def main():
             print(child)
     if args.sim:
         ir = Interpreter(root=root)
-        print(ir.interpret())
+        ir.interpret()
     elif args.compile:
         compiler = Compile()
         compiler.compile_ast(root)
