@@ -36,15 +36,16 @@ print:
 exitinstr = """
     ; exit section---
     ; temp
-    pop rdi
-    call print
     mov rax, 60       
     mov rdi, {}        
     syscall
     ; --------------          
 """
+textinstr = """ ; text section
+section .txt
+    global _start
+"""
 startinstr = """
-global _start
 
 _start:
 """
@@ -76,4 +77,16 @@ divinstr = """; div
     cdq 
     idiv rbx
     push rax 
+"""
+assigninstr = """; assignment
+    pop r10 
+    mov  [{}], r10  
+"""
+getvarinstr = """; get variable
+    mov r10, [{}]
+    push r10
+"""
+callprintinstr = """; call print
+    pop rdi
+    call print
 """
