@@ -1,7 +1,11 @@
 # compiler
 import argparse
 import os
-from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr
+from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
+                        callprintinstr, textinstr
+from dataclasses import dataclass, field
+from typing import List
+
 INTEGER ,PLUS, DIV, SUB, MULT, EOF = 'integer', '+', '/', '-','*', 'eof'
 LPARAN, RPARAN, ASSIGN, SEMICOLON = '(', ')', '=', ';'
 DATATYPE = 'datatype'
@@ -11,6 +15,17 @@ PRINT = 'print'
 #Define supported datatypes
 DATATYPES = set(['int'])
 RESERVED_KEYWORDS = set([PRINT])
+
+@dataclass
+class BssData:
+    declared_data : List[list] = field(default_factory=list)
+
+    def add_variable(self, name, res='resq', size='8'):
+        self.declared_data.append([name, res, size])
+    
+    def __str__(self):
+        return 'section .bss\n  ' + '\n   '.join([' '.join(data) for data in self.declared_data])
+    
 class Token:
     def __init__(self, type, value):
         self.type = type
@@ -44,6 +59,8 @@ class VarDeclare:
         self.var = var_node
         self.type = type_node
         self.value = value_node
+        self._id = -1
+
     def __str__(self) -> str:
         return(f'VarDeclare : {self.var}, Value : {self.value}, Type : {self.type}')
 
@@ -384,17 +401,27 @@ class Interpreter:
 class Compile:
     def __init__(self) -> None:
         self.asmFile = './compile.asm'
-        self.asmList = []
+        self.asmList = ["{}"]
+        self.bss = BssData()
+        self.__SYMBOL_TABLE = {}
+        self.__varcount = 0
         # self.all_available_regs = { "r8", "r9", "r10", "r11" }
+    
+    @property
+    def varcount(self):
+        self.__varcount +=1
+        return self.__varcount
 
     def get_required_pre_asm(self):
         ##############
         #try to optimize this rather than extending and creating of large list
         ############## 
+        self.asmList.append(textinstr)
         self.asmList.append(printintinstr)
         self.asmList.append(startinstr)
     
     def get_required_post_asm(self):
+        self.asmList[0] = self.asmList[0].format(self.bss)
         self.asmList.append(exitinstr.format(0))
 
     def __gen_code_binary_op(self, opA, opB, otype):
@@ -412,6 +439,14 @@ class Compile:
     def __gen_code_numliteral(self, num):
         self.asmList.append(numlitinstr.format(num))
 
+    def __gen_code_assign(self, node_name):
+        self.asmList.append(assigninstr.format(node_name))
+    
+    def __gen_code_get_variable(self,node_name):
+        self.asmList.append(getvarinstr.format(node_name))
+    
+    def __gen_code_print(self):
+        self.asmList.append(callprintinstr)
 
     def visit(self, node):
         if isinstance(node, BinOp):
@@ -426,6 +461,27 @@ class Compile:
         
         if isinstance(node, NumLiteral):
             self.__gen_code_numliteral(node.value) 
+        
+        if isinstance(node, VarDeclare):
+            node_name = node.var.name
+            self.bss.add_variable(node_name)
+            self.__SYMBOL_TABLE[node_name] = node
+            self.visit(node.value) if node.value else None
+            # self.__SYMBOL_TABLE[node_name] = node
+
+        if isinstance(node, VarAssign):
+            node_name = node.var.name
+            self.visit(node.right_expr)
+            self.__gen_code_assign(node_name) 
+            # node.value = value
+            self.__SYMBOL_TABLE[node_name]._id = self.varcount
+
+        if isinstance(node , Var):
+            self.__gen_code_get_variable(node.name)
+        
+        if isinstance(node ,Print):
+            self.visit(node.value)
+            self.__gen_code_print()
 
     def write_asm(self):
         with open(self.asmFile, 'w') as asm:
@@ -433,7 +489,8 @@ class Compile:
 
     def compile_ast(self, root):
         self.get_required_pre_asm()
-        self.visit(root)
+        for child in root.children:
+            self.visit(child)
         self.get_required_post_asm()
         self.write_asm()
 
@@ -477,7 +534,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
