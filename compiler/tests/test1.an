@@ -1,0 +1,18 @@
+//int x=10000
+int x = 10 ;
+int b ;
+int c ;
+x= 1000;
+c = 1111; //yfyftf
+
+//uyguyguygu
+////
+//test 
+b = 1 + 3;
+x= b + c;
+
+print(x); 
+print(b);
+print(c);
+print(x + b+c+10000); //testtttt
+print(7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8));
