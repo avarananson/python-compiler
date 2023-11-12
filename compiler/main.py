@@ -5,16 +5,31 @@ from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitins
                         callprintinstr, textinstr
 from dataclasses import dataclass, field
 from typing import List
+from enum import Enum
 
-INTEGER ,PLUS, DIV, SUB, MULT, EOF = 'integer', '+', '/', '-','*', 'eof'
-LPARAN, RPARAN, ASSIGN, SEMICOLON = '(', ')', '=', ';'
-DATATYPE = 'datatype'
-IDENTIFIER = 'identifier'
-PRINT = 'print'
+class TokConsts(str,Enum):
+    INTEGER = 'integer'
+    PLUS =  '+'
+    DIV  =  '/'
+    SUB  = '-'
+    MULT = '*'
+    EOF  = 'eof'
+    LPARAN = '('
+    RPARAN = ')'
+    ASSIGN = '='
+    SEMICOLON = ';'
+    DATATYPE = 'datatype'
+    IDENTIFIER = 'identifier'
+    PRINT = 'print'
+    GREATER = '>'
+    LESSTHAN = '<'
+    EQUAL = '=='
+    NT_EQUAL = '!='
+
 
 #Define supported datatypes
 DATATYPES = set(['int'])
-RESERVED_KEYWORDS = set([PRINT])
+RESERVED_KEYWORDS = set([TokConsts.PRINT])
 
 @dataclass
 class BssData:
@@ -71,7 +86,7 @@ class VarAssign:
     def __str__(self) -> str:
         return(f'VarAssign : Name : {self.var} , right_expr : {self.right_expr}')
 
-        
+ 
 class BinOp(AST):
     def __init__(self, left, token, right) -> None:
         super().__init__()
@@ -81,6 +96,10 @@ class BinOp(AST):
     
     def __str__(self) -> str:
         return f'Binary op instance {self.lchild} {self.token} {self.rchild}'
+
+class RelationalEqualityOp(BinOp):
+    def __str__(self) -> str:
+        return f'RelationalEqualityOp  instance {self.lchild} {self.token} {self.rchild}'
 
 class NumLiteral(AST):
     def __init__(self, value) -> None:
@@ -110,7 +129,7 @@ class Lexer:
         curr_char = self.curr_char
         self.curr_pos += 1
         if self.curr_pos >= self.codelen:
-            self.curr_char = EOF
+            self.curr_char = TokConsts.EOF
         else:
             self.curr_char = self.strcode[self.curr_pos]
         return curr_char
@@ -129,14 +148,15 @@ class Lexer:
         return int(res)
             
     def peek(self):
-        if self.curr_pos < self.codelen:
+        if self.curr_pos < self.codelen-1:
+            # print(self.codelen, self.curr_pos, self.strcode)
             return self.strcode[self.curr_pos + 1]
         else:
-            return EOF
+            return TokConsts.EOF
 
     def get_next_token_word(self):
         res = ''
-        while self.curr_char != EOF and self.curr_char.isalpha():
+        while self.curr_char != TokConsts.EOF and self.curr_char.isalpha():
             res += self.consume_char()
         return res
 
@@ -152,11 +172,11 @@ class Lexer:
         return False
     
     def skip_comments(self):
-        while self.curr_char != EOF and self.curr_char != '\n': 
+        while self.curr_char != TokConsts.EOF and self.curr_char != '\n': 
             self.consume_char()
 
     def get_next_token(self):
-        while self.curr_char != EOF:
+        while self.curr_char != TokConsts.EOF:
             if self.is_whitespace():
                 self.skip_whitespace()
                 continue
@@ -164,53 +184,71 @@ class Lexer:
                 self.skip_comments()
                 continue
             if self.curr_char.isdigit():
-                return Token(INTEGER, self.integer())
+                return Token(TokConsts.INTEGER, self.integer())
             
             if self.curr_char.isalpha():
                 token_word = self.get_next_token_word()
                 if token_word in DATATYPES:
-                    return Token(DATATYPE ,token_word)
+                    return Token(TokConsts.DATATYPE ,token_word)
                 elif token_word in RESERVED_KEYWORDS:
                     return Token(token_word ,token_word)
                 else:
-                    return Token(IDENTIFIER, token_word)
+                    return Token(TokConsts.IDENTIFIER, token_word)
             
-            if self.curr_char == PLUS:
+            if self.curr_char == TokConsts.GREATER:
                 self.consume_char()
-                return Token(PLUS, PLUS)
+                return Token(TokConsts.GREATER, TokConsts.GREATER)
             
-            if self.curr_char == SUB:
+            if self.curr_char == TokConsts.LESSTHAN:
                 self.consume_char()
-                return Token(SUB, SUB)
-            
-            if self.curr_char == MULT:
-                self.consume_char()
-                return Token(MULT, MULT)
-            
-            if self.curr_char == DIV:
-                self.consume_char()
-                return Token(DIV, DIV)
-            
-            if self.curr_char == LPARAN:
-                self.consume_char()
-                return Token(LPARAN, LPARAN)
-            
-            if self.curr_char == RPARAN:
-                self.consume_char()
-                return Token(RPARAN, RPARAN)
+                return Token(TokConsts.LESSTHAN, TokConsts.LESSTHAN)
 
-            if self.curr_char == SEMICOLON:
+            if self.curr_char + self.peek() == TokConsts.EQUAL:
                 self.consume_char()
-                return Token(SEMICOLON, SEMICOLON)
+                self.consume_char()
+                return Token(TokConsts.EQUAL, TokConsts.EQUAL)
             
-            if self.curr_char == ASSIGN:
+            if self.curr_char + self.peek() == TokConsts.NT_EQUAL:
                 self.consume_char()
-                return Token(ASSIGN, ASSIGN)
+                self.consume_char()
+                return Token(TokConsts.NT_EQUAL, TokConsts.NT_EQUAL)
+
+            if self.curr_char == TokConsts.PLUS:
+                self.consume_char()
+                return Token(TokConsts.PLUS, TokConsts.PLUS)
+            
+            if self.curr_char == TokConsts.SUB:
+                self.consume_char()
+                return Token(TokConsts.SUB,TokConsts. SUB)
+            
+            if self.curr_char == TokConsts.MULT:
+                self.consume_char()
+                return Token(TokConsts.MULT, TokConsts.MULT)
+            
+            if self.curr_char == TokConsts.DIV:
+                self.consume_char()
+                return Token(TokConsts.DIV, TokConsts.DIV)
+            
+            if self.curr_char == TokConsts.LPARAN:
+                self.consume_char()
+                return Token(TokConsts.LPARAN, TokConsts.LPARAN)
+            
+            if self.curr_char == TokConsts.RPARAN:
+                self.consume_char()
+                return Token(TokConsts.RPARAN, TokConsts.RPARAN)
+
+            if self.curr_char == TokConsts.SEMICOLON:
+                self.consume_char()
+                return Token(TokConsts.SEMICOLON, TokConsts.SEMICOLON)
+            
+            if self.curr_char == TokConsts.ASSIGN:
+                self.consume_char()
+                return Token(TokConsts.ASSIGN, TokConsts.ASSIGN)
 
             self.raise_error(f'Unrecognized syntax "{self.curr_char}" at position {self.curr_pos }', exit=1)
 
             
-        return Token(EOF,EOF)
+        return Token(TokConsts.EOF,TokConsts.EOF)
             
 class Parser:
 
@@ -226,7 +264,7 @@ class Parser:
 
     def consume_token(self, TYPE):
         if self.curr_token.type != TYPE:
-            # print(self.curr_token ,TYPE)
+            print(self.curr_token.type ,TYPE)
             self.raise_error(f'Syntax error at position {self.lexer.curr_pos }', exit=1)
         else:
             self.curr_token = self.lexer.get_next_token()
@@ -242,14 +280,14 @@ class Parser:
     def statements(self):
         _statements = []
         # print(self.curr_token)
-        while self.curr_token.type != EOF:
+        while self.curr_token.type != TokConsts.EOF:
             # print('in HHH', self.curr_token)
-            if self.curr_token.type == DATATYPE:
+            if self.curr_token.type == TokConsts.DATATYPE:
                 # print(self.curr_token)
                 _statements.append(self.var_declare())
-            elif self.curr_token.type == IDENTIFIER:
+            elif self.curr_token.type == TokConsts.IDENTIFIER:
                 _statements.append(self.var_assign())
-            elif self.curr_token.type == PRINT:
+            elif self.curr_token.type == TokConsts.PRINT:
                 
                 _statements.append(self.eprint())
             else:
@@ -258,69 +296,91 @@ class Parser:
         return _statements
 
     def eprint(self):
-        self.consume_token(PRINT)
-        self.consume_token(LPARAN)
-        print_node = Print(self.expr())
-        self.consume_token(RPARAN)
-        self.consume_token(SEMICOLON)
+        self.consume_token(TokConsts.PRINT)
+        self.consume_token(TokConsts.LPARAN)
+        print_node = Print(self.equality())
+        self.consume_token(TokConsts.RPARAN)
+        self.consume_token(TokConsts.SEMICOLON)
         return print_node
 
 
     def var_assign(self):
         curr_tok_var = Var(self.curr_token.value)
-        self.consume_token(IDENTIFIER)
-        self.consume_token(ASSIGN)
-        expr_node = self.expr()
-        varassign = VarAssign(curr_tok_var, expr_node)
-        self.consume_token(SEMICOLON)
+        self.consume_token(TokConsts.IDENTIFIER)
+        self.consume_token(TokConsts.ASSIGN)
+        eq_node = self.equality()
+        varassign = VarAssign(curr_tok_var, eq_node)
+        self.consume_token(TokConsts.SEMICOLON)
         return varassign
 
     def var_declare(self):
         curr_tok_dt = self.curr_token
-        self.consume_token(DATATYPE)
+        self.consume_token(TokConsts.DATATYPE)
         curr_tok_var = Var(self.curr_token.value)
-        self.consume_token(IDENTIFIER)
+        self.consume_token(TokConsts.IDENTIFIER)
         
-        if self.curr_token.type == ASSIGN:
-            self.consume_token(ASSIGN)
-            expr_node = self.expr()
+        if self.curr_token.type == TokConsts.ASSIGN:
+            self.consume_token(TokConsts.ASSIGN)
+            eq_node = self.equality()
             # identifier = Identifier(curr_tok_var, curr_tok_dt , node)
-            varassign = VarAssign(curr_tok_var, expr_node)
+            varassign = VarAssign(curr_tok_var, eq_node)
             vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  varassign)
         else:
             # identifier = Identifier(curr_tok_var, curr_tok_dt , None)
             vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  None)
             
-        self.consume_token(SEMICOLON)
+        self.consume_token(TokConsts.SEMICOLON)
         return vardecl
     
+    def equality(self):
+        chain_count_eq = 0
+        node = self.relational()
+        while self.curr_token.type in (TokConsts.EQUAL, TokConsts.NT_EQUAL) and self.curr_token!= TokConsts.EOF:
+            curr_token = self.curr_token
+            self.consume_token(self.curr_token.type)
+            chain_count_eq +=1
+            node = RelationalEqualityOp(left=node, token=curr_token, right=self.relational())
+        node.chain_count_eq = chain_count_eq
+        return node
+
+    def relational(self):
+        chain_count_rel = 0
+        node = self.expr()
+        while self.curr_token.type in (TokConsts.GREATER, TokConsts.LESSTHAN) and self.curr_token!= TokConsts.EOF:
+            curr_token = self.curr_token
+            self.consume_token(self.curr_token.type)
+            chain_count_rel +=1
+            node = RelationalEqualityOp(left=node, token=curr_token, right=self.expr())
+        node.chain_count_rel = chain_count_rel
+        # print(node, '\n','---' ,node.chain_count_rel)
+        return node
 
     def factor(self):
         # print()
-        if self.curr_token.type == LPARAN:
-            self.consume_token(LPARAN)
-            node = self.expr()
-            self.consume_token(RPARAN)
+        if self.curr_token.type == TokConsts.LPARAN:
+            self.consume_token(TokConsts.LPARAN)
+            node = self.equality()
+            self.consume_token(TokConsts.RPARAN)
             return node
-        elif self.curr_token.type == INTEGER:
+        elif self.curr_token.type == TokConsts.INTEGER:
             token = self.curr_token
-            self.consume_token(INTEGER)
+            self.consume_token(TokConsts.INTEGER)
             return NumLiteral(token.value)
-        elif self.curr_token.type == IDENTIFIER:
+        elif self.curr_token.type == TokConsts.IDENTIFIER:
             token = self.curr_token
-            self.consume_token(IDENTIFIER)
+            self.consume_token(TokConsts.IDENTIFIER)
             return Var(token.value)
 
 
     def term(self):
         node = self.factor()
-        while self.curr_token.type in (MULT, DIV) and self.curr_token != EOF:
+        while self.curr_token.type in (TokConsts.MULT, TokConsts.DIV) and self.curr_token != TokConsts.EOF:
             tok = self.curr_token
-            if self.curr_token.type == MULT:
-                self.consume_token(MULT)
+            if self.curr_token.type == TokConsts.MULT:
+                self.consume_token(TokConsts.MULT)
                 # res *= self.factor()
-            elif self.curr_token.type == DIV:
-                self.consume_token(DIV)
+            elif self.curr_token.type == TokConsts.DIV:
+                self.consume_token(TokConsts.DIV)
                 # res /= self.factor()
             node = BinOp(left=node, token=tok, right=self.factor())
         return node
@@ -335,14 +395,14 @@ class Parser:
         """
         node = self.term()
         # print(res)
-        while self.curr_token.type in (PLUS, SUB) and self.curr_token != EOF:
+        while self.curr_token.type in (TokConsts.PLUS, TokConsts.SUB) and self.curr_token != TokConsts.EOF:
             # print(self.curr_token)
             tok = self.curr_token
-            if self.curr_token.type == PLUS:
-                self.consume_token(PLUS)
+            if self.curr_token.type == TokConsts.PLUS:
+                self.consume_token(TokConsts.PLUS)
                 # node =  self.term()
-            elif self.curr_token.type == SUB:
-                self.consume_token(SUB)
+            elif self.curr_token.type == TokConsts.SUB:
+                self.consume_token(TokConsts.SUB)
                 # node =  self.term()
             node = BinOp(left=node, token=tok, right=self.term())
             
@@ -359,18 +419,22 @@ class Interpreter:
             self.visit(child)
         # print(self.__SYMBOL_TABLE)
         # print(self.__SYMBOL_TABLE['x'].value)
-
+    def raise_error(self, msg, exit):
+        if exit:
+            raise Exception(msg)
+        else:
+             print(msg)
 
     def visit(self, node):
 
         if isinstance(node, BinOp):
-            if node.token.type == PLUS:
+            if node.token.type == TokConsts.PLUS:
                 return (self.visit(node.lchild) +  self.visit(node.rchild))
-            if node.token.type == SUB:
+            if node.token.type == TokConsts.SUB:
                 return (self.visit(node.lchild) -  self.visit(node.rchild))
-            if node.token.type == DIV:
+            if node.token.type == TokConsts.DIV:
                 return (self.visit(node.lchild) //  self.visit(node.rchild))
-            if node.token.type == MULT:
+            if node.token.type == TokConsts.MULT:
                 return (self.visit(node.lchild) *  self.visit(node.rchild))
             
         if isinstance(node, NumLiteral):
@@ -389,7 +453,23 @@ class Interpreter:
             # node.value = value
             self.__SYMBOL_TABLE[node_name].value = value
             return value
-
+        
+        if isinstance(node, RelationalEqualityOp):
+            # print(n÷ßode)
+            # print('node',node, '->')
+            # print( node.chain_count)
+            if getattr(node,'chain_count_eq',0)>1 or getattr(node,'chain_count_rel',0)>1:
+                
+                self.raise_error(f'Chained equality/comparison operators are found. It could result in ambigius results',exit=1)
+            if node.token.type == TokConsts.GREATER:
+                return int((self.visit(node.lchild) >  self.visit(node.rchild)))
+            if node.token.type == TokConsts.LESSTHAN:
+                return int((self.visit(node.lchild) <  self.visit(node.rchild)))
+            if node.token.type == TokConsts.EQUAL:
+                return int((self.visit(node.lchild) ==  self.visit(node.rchild)))
+            if node.token.type == TokConsts.NT_EQUAL:
+                return int((self.visit(node.lchild) !=  self.visit(node.rchild)))
+            
         if isinstance(node , Var):
             return self.__SYMBOL_TABLE[node.name].value
         
@@ -426,13 +506,13 @@ class Compile:
 
     def __gen_code_binary_op(self, opA, opB, otype):
         # self.__get_free_reg()
-        if otype == PLUS:
+        if otype == TokConsts.PLUS:
             self.asmList.append(addinstr)
-        if otype == SUB:
+        if otype == TokConsts.SUB:
             self.asmList.append(subinstr)
-        if otype == MULT:
+        if otype == TokConsts.MULT:
             self.asmList.append(multinstr)
-        if otype == DIV:
+        if otype == TokConsts.DIV:
             self.asmList.append(divinstr)
             
 
@@ -450,14 +530,14 @@ class Compile:
 
     def visit(self, node):
         if isinstance(node, BinOp):
-            if node.token.type == PLUS:
-                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), PLUS)
-            if node.token.type == SUB:
-                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), SUB)
-            if node.token.type == DIV:
-                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), DIV)
-            if node.token.type == MULT:
-                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), MULT)
+            if node.token.type == TokConsts.PLUS:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), TokConsts.PLUS)
+            if node.token.type == TokConsts.SUB:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), TokConsts.SUB)
+            if node.token.type == TokConsts.DIV:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), TokConsts.DIV)
+            if node.token.type == TokConsts.MULT:
+                self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), TokConsts.MULT)
         
         if isinstance(node, NumLiteral):
             self.__gen_code_numliteral(node.value) 
@@ -511,7 +591,7 @@ def main():
         while 1:
             x = lexer.get_next_token()
             print(x)
-            if x.value == EOF:
+            if x.value == TokConsts.EOF:
                 break
         # return
     lexer  = Lexer(code)
