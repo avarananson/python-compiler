@@ -1,3 +1,4 @@
+
 printintinstr = """
 print:
     mov     r9, -3689348814741910323
@@ -89,4 +90,13 @@ getvarinstr = """; get variable
 callprintinstr = """; call print
     pop rdi
     call print
+"""
+relationalequalityinstr = """; relational comparison
+   xor rdi, rdi
+   mov r10 ,1
+   pop rax
+   pop rcx
+   cmp rcx, rax
+   {} rdi, r10
+   push rdi
 """
