@@ -2,7 +2,7 @@
 import argparse
 import os
 from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
-                        callprintinstr, textinstr
+                        callprintinstr, textinstr, relationalequalityinstr
 from dataclasses import dataclass, field
 from typing import List
 from enum import Enum
@@ -485,6 +485,7 @@ class Compile:
         self.bss = BssData()
         self.__SYMBOL_TABLE = {}
         self.__varcount = 0
+        self.map_relational_eq = {TokConsts.GREATER: 'cmovg', TokConsts.LESSTHAN: 'cmovl', TokConsts.EQUAL: 'cmove', TokConsts.NT_EQUAL: 'cmovne'}
         # self.all_available_regs = { "r8", "r9", "r10", "r11" }
     
     @property
@@ -525,6 +526,10 @@ class Compile:
     def __gen_code_get_variable(self,node_name):
         self.asmList.append(getvarinstr.format(node_name))
     
+    def __gen_code_relational_equality_op(self,opA, opB, token):
+
+        self.asmList.append(relationalequalityinstr.format(self.map_relational_eq[token]))
+    
     def __gen_code_print(self):
         self.asmList.append(callprintinstr)
 
@@ -555,6 +560,19 @@ class Compile:
             self.__gen_code_assign(node_name) 
             # node.value = value
             self.__SYMBOL_TABLE[node_name]._id = self.varcount
+
+        if isinstance(node, RelationalEqualityOp):
+
+            if getattr(node,'chain_count_eq',0)>1 or getattr(node,'chain_count_rel',0)>1:
+                self.raise_error(f'Chained equality/comparison operators are found. It could result in ambigius results',exit=1)
+            if node.token.type == TokConsts.GREATER:
+                self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.GREATER)
+            if node.token.type == TokConsts.LESSTHAN:
+                self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.LESSTHAN)
+            if node.token.type == TokConsts.EQUAL:
+                self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.EQUAL)
+            if node.token.type == TokConsts.NT_EQUAL:
+                self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.NT_EQUAL)
 
         if isinstance(node , Var):
             self.__gen_code_get_variable(node.name)
@@ -614,7 +632,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
