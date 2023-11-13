@@ -1,0 +1,19 @@
+int x;
+
+
+x = 0 && 0 && 0;
+int y=1;
+int z=1;
+int k = (1 && 1) && (0 || 1);
+print(k);
+int a ;
+a = (y==z) && (1==1);
+print(a);
+
+int b;
+int c=10;
+b = (c==y) || (y>z);
+print(b);
+
+b= (c>y) && (z>0);
+print(b);
