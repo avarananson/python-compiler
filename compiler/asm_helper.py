@@ -1,4 +1,3 @@
-
 printintinstr = """
 print:
     mov     r9, -3689348814741910323
@@ -99,4 +98,15 @@ relationalequalityinstr = """; relational comparison
    cmp rcx, rax
    {} rdi, r10
    push rdi
+"""
+logicalistr = """; logical instr
+    pop rax
+    pop rcx
+    test rax, rax
+    setne al
+    test rcx, rcx
+    setne cl
+    {} al, cl
+    movzx eax, al
+    push rax
 """
