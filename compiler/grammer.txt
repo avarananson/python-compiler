@@ -1,11 +1,19 @@
 
 prog : statements
 
-statements: var_declare  | statement
+statements: var_declare  | statement | print
 
 var_declare: type IDENTIFIER (( = expr ;) | ;)
 
-statement: IDENTIFIER = expr ; 
+statement: IDENTIFIER = logical_or ;
+
+logical_or : logical_and || logical_and ;
+
+logical_and: equality && equality ;
+ 
+equality: relational ((== | !=) relational)*
+
+relational: expr ((< | > | <= | >=) expr)*
 
 expr: term ((PLUS | MINUS) term)*
 

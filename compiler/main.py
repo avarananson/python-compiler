@@ -25,6 +25,8 @@ class TokConsts(str,Enum):
     LESSTHAN = '<'
     EQUAL = '=='
     NT_EQUAL = '!='
+    LOGICAL_OR = '||'
+    LOGICAL_AND = '&&'
 
 
 #Define supported datatypes
@@ -68,7 +70,7 @@ class Var:
         self.name = name
     def __str__(self) -> str:
         return(f'Var: {self.name}')
-            
+
 class VarDeclare:
     def __init__(self, type_node, var_node , value_node) -> None:
         self.var = var_node
@@ -100,6 +102,12 @@ class BinOp(AST):
 class RelationalEqualityOp(BinOp):
     def __str__(self) -> str:
         return f'RelationalEqualityOp  instance {self.lchild} {self.token} {self.rchild}'
+
+class LogicalOP(BinOp):
+    def __str__(self) -> str:
+        return f'LogicalOP  instance {self.lchild} {self.token} {self.rchild}'
+
+
 
 class NumLiteral(AST):
     def __init__(self, value) -> None:
@@ -212,6 +220,16 @@ class Lexer:
                 self.consume_char()
                 self.consume_char()
                 return Token(TokConsts.NT_EQUAL, TokConsts.NT_EQUAL)
+            
+            if self.curr_char + self.peek() == TokConsts.LOGICAL_OR:
+                self.consume_char()
+                self.consume_char()
+                return Token(TokConsts.LOGICAL_OR, TokConsts.LOGICAL_OR)
+            
+            if self.curr_char + self.peek() == TokConsts.LOGICAL_AND:
+                self.consume_char()
+                self.consume_char()
+                return Token(TokConsts.LOGICAL_AND, TokConsts.LOGICAL_AND)
 
             if self.curr_char == TokConsts.PLUS:
                 self.consume_char()
@@ -298,7 +316,7 @@ class Parser:
     def eprint(self):
         self.consume_token(TokConsts.PRINT)
         self.consume_token(TokConsts.LPARAN)
-        print_node = Print(self.equality())
+        print_node = Print(self.logical_or())
         self.consume_token(TokConsts.RPARAN)
         self.consume_token(TokConsts.SEMICOLON)
         return print_node
@@ -308,7 +326,7 @@ class Parser:
         curr_tok_var = Var(self.curr_token.value)
         self.consume_token(TokConsts.IDENTIFIER)
         self.consume_token(TokConsts.ASSIGN)
-        eq_node = self.equality()
+        eq_node = self.logical_or()
         varassign = VarAssign(curr_tok_var, eq_node)
         self.consume_token(TokConsts.SEMICOLON)
         return varassign
@@ -321,7 +339,7 @@ class Parser:
         
         if self.curr_token.type == TokConsts.ASSIGN:
             self.consume_token(TokConsts.ASSIGN)
-            eq_node = self.equality()
+            eq_node = self.logical_or()
             # identifier = Identifier(curr_tok_var, curr_tok_dt , node)
             varassign = VarAssign(curr_tok_var, eq_node)
             vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  varassign)
@@ -332,6 +350,22 @@ class Parser:
         self.consume_token(TokConsts.SEMICOLON)
         return vardecl
     
+    def logical_or(self):
+        node = self.logical_and()
+        while self.curr_token.type == TokConsts.LOGICAL_OR and self.curr_token!= TokConsts.EOF:
+            curr_token = self.curr_token
+            self.consume_token(self.curr_token.type)
+            node = LogicalOP(left=node, token=curr_token, right=self.logical_and())
+        return node
+    
+    def logical_and(self):
+        node = self.equality()
+        while self.curr_token.type == TokConsts.LOGICAL_AND and self.curr_token!= TokConsts.EOF:
+            curr_token = self.curr_token
+            self.consume_token(self.curr_token.type)
+            node = LogicalOP(left=node, token=curr_token, right=self.equality())
+        return node
+
     def equality(self):
         chain_count_eq = 0
         node = self.relational()
@@ -359,7 +393,7 @@ class Parser:
         # print()
         if self.curr_token.type == TokConsts.LPARAN:
             self.consume_token(TokConsts.LPARAN)
-            node = self.equality()
+            node = self.logical_or()
             self.consume_token(TokConsts.RPARAN)
             return node
         elif self.curr_token.type == TokConsts.INTEGER:
@@ -417,8 +451,7 @@ class Interpreter:
     def interpret(self):
         for child in self.root.children:
             self.visit(child)
-        # print(self.__SYMBOL_TABLE)
-        # print(self.__SYMBOL_TABLE['x'].value)
+
     def raise_error(self, msg, exit):
         if exit:
             raise Exception(msg)
@@ -469,6 +502,14 @@ class Interpreter:
                 return int((self.visit(node.lchild) ==  self.visit(node.rchild)))
             if node.token.type == TokConsts.NT_EQUAL:
                 return int((self.visit(node.lchild) !=  self.visit(node.rchild)))
+            
+        if isinstance(node, LogicalOP):
+            if node.token.type == TokConsts.LOGICAL_OR:
+                return int((self.visit(node.lchild) or  self.visit(node.rchild)))
+            if node.token.type == TokConsts.LOGICAL_AND:
+                return int((self.visit(node.lchild) and  self.visit(node.rchild)))
+        
+            
             
         if isinstance(node , Var):
             return self.__SYMBOL_TABLE[node.name].value
