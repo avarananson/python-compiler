@@ -2,7 +2,7 @@
 import argparse
 import os
 from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
-                        callprintinstr, textinstr, relationalequalityinstr
+                        callprintinstr, textinstr, relationalequalityinstr, logicalistr
 from dataclasses import dataclass, field
 from typing import List
 from enum import Enum
@@ -527,6 +527,7 @@ class Compile:
         self.__SYMBOL_TABLE = {}
         self.__varcount = 0
         self.map_relational_eq = {TokConsts.GREATER: 'cmovg', TokConsts.LESSTHAN: 'cmovl', TokConsts.EQUAL: 'cmove', TokConsts.NT_EQUAL: 'cmovne'}
+        self.map_logical = {TokConsts.LOGICAL_AND:'and', TokConsts.LOGICAL_OR:'or'}
         # self.all_available_regs = { "r8", "r9", "r10", "r11" }
     
     @property
@@ -571,6 +572,9 @@ class Compile:
 
         self.asmList.append(relationalequalityinstr.format(self.map_relational_eq[token]))
     
+    def __gen_code_logical_op(self, opA, opB, token):
+        self.asmList.append(logicalistr.format(self.map_logical[token]))
+    
     def __gen_code_print(self):
         self.asmList.append(callprintinstr)
 
@@ -614,6 +618,13 @@ class Compile:
                 self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.EQUAL)
             if node.token.type == TokConsts.NT_EQUAL:
                 self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.NT_EQUAL)
+        
+        if isinstance(node, LogicalOP):
+            if node.token.type == TokConsts.LOGICAL_OR:
+                self.__gen_code_logical_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.LOGICAL_OR)
+            
+            if node.token.type == TokConsts.LOGICAL_AND:
+                self.__gen_code_logical_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.LOGICAL_AND)
 
         if isinstance(node , Var):
             self.__gen_code_get_variable(node.name)
@@ -673,7 +684,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
