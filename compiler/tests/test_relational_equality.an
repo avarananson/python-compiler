@@ -1,0 +1,23 @@
+int x;
+// x = 1 >2;
+// int z=1;
+// int r = 10;
+// print(z!=r);
+int y;
+x  = 10;
+y=11;
+int z;
+int a;
+a=10;
+z=10;
+int b = a==z;
+print(x==y);
+print(y!=x);
+print(z>a);
+print(x>y);
+// print(x<2>7);
+// print(1);
+print(b);
+
+
+// print(1==1);
