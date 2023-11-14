@@ -8,6 +8,35 @@ from typing import List ,Union, Any
 from enum import Enum
 UNKNOWN, LOCAL = 'unknown', 'local'
 
+class TokConsts(str, Enum):
+    INTEGER = 'integer'
+    PLUS =  '+'
+    DIV  =  '/'
+    SUB  = '-'
+    MULT = '*'
+    EOF  = 'eof'
+    LPARAN = '('
+    RPARAN = ')'
+    ASSIGN = '='
+    SEMICOLON = ';'
+    DATATYPE = 'datatype'
+    IDENTIFIER = 'identifier'
+    PRINT = 'print'
+    GREATER = '>'
+    LESSTHAN = '<'
+    EQUAL = '=='
+    NT_EQUAL = '!='
+    LOGICAL_OR = '||'
+    LOGICAL_AND = '&&'
+    IF = 'if'
+    ELSE = 'else'
+    LCURLY = '{'
+    RCURLY = '}'
+
+
+#Define supported datatypes
+DATATYPES = set(['int'])
+RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE])
  
 @dataclass
 class SymScope:
@@ -51,46 +80,18 @@ class ScopeContainer:
         raise ValueError(f'ERROR: {name} symbol not found defined. ')
 
     def remove_scope(self) -> None:
-        if not self.current_scope_head:
-            print(f'Removing scope {self.current_scope_head} at level {self.current_scope_head.level} ..')
+        if self.current_scope_head:
+            # print(f'Removing scope {self.current_scope_head} at level {self.current_scope_head.level} ..')
             prev = self.current_scope_head.prev
             self.current_scope_head = prev
-        print('After removal , below are the remaining ones.....')
-        print('====================================')
+        # print('After removal , below are the remaining ones.....')
+        # print('====================================')
         sc = self.current_scope_head
         while sc:
-            print(f'sc {sc.level} ==> {sc._table}')
+            # print(f'sc {sc.level} ==> {sc._table}')
             sc = sc.prev
-        print('====================================')
+        # print('====================================')
         
-
-
-class TokConsts(str,Enum):
-    INTEGER = 'integer'
-    PLUS =  '+'
-    DIV  =  '/'
-    SUB  = '-'
-    MULT = '*'
-    EOF  = 'eof'
-    LPARAN = '('
-    RPARAN = ')'
-    ASSIGN = '='
-    SEMICOLON = ';'
-    DATATYPE = 'datatype'
-    IDENTIFIER = 'identifier'
-    PRINT = 'print'
-    GREATER = '>'
-    LESSTHAN = '<'
-    EQUAL = '=='
-    NT_EQUAL = '!='
-    LOGICAL_OR = '||'
-    LOGICAL_AND = '&&'
-
-
-#Define supported datatypes
-DATATYPES = set(['int'])
-RESERVED_KEYWORDS = set([TokConsts.PRINT])
-
 @dataclass
 class BssData:
     declared_data : List[list] = field(default_factory=list)
@@ -165,6 +166,15 @@ class LogicalOP(BinOp):
     def __str__(self) -> str:
         return f'LogicalOP  instance {self.lchild} {self.token} {self.rchild}'
 
+class IfElseBlock:
+    def __init__(self, condition,type, block ) -> None:
+        self.lchild  =condition
+        self.token = type
+        self.rchild = block
+        self.elsechild = None
+
+    def __str__(self) -> str:
+        return f'IfElseBlock  instance {self.lchild} {self.token} {self.rchild}'
 
 
 class NumLiteral(AST):
@@ -320,6 +330,16 @@ class Lexer:
             if self.curr_char == TokConsts.ASSIGN:
                 self.consume_char()
                 return Token(TokConsts.ASSIGN, TokConsts.ASSIGN)
+            
+            if self.curr_char == TokConsts.LCURLY:
+                self.consume_char()
+                return Token(TokConsts.LCURLY, TokConsts.LCURLY)
+
+            if self.curr_char == TokConsts.RCURLY:
+                self.consume_char()
+                return Token(TokConsts.RCURLY, TokConsts.RCURLY)
+
+
 
             self.raise_error(f'Unrecognized syntax "{self.curr_char}" at position {self.curr_pos }', exit=1)
 
@@ -355,21 +375,46 @@ class Parser:
     
     def statements(self) ->None:
         _statements = []
-        # print(self.curr_token)
         while self.curr_token.type != TokConsts.EOF:
-            # print('in HHH', self.curr_token)
-            if self.curr_token.type == TokConsts.DATATYPE:
-                # print(self.curr_token)
-                _statements.append(self.var_declare())
-            elif self.curr_token.type == TokConsts.IDENTIFIER:
-                _statements.append(self.var_assign())
-            elif self.curr_token.type == TokConsts.PRINT:
-                
-                _statements.append(self.eprint())
-            else:
-                self.raise_error(f'Unrecognized statement {self.curr_token} .', exit=1)
-
+            _statements.append(self.statement())
         return _statements
+
+    def statement(self) -> Any:
+
+        if self.curr_token.type == TokConsts.DATATYPE:
+                # print(self.curr_token)
+            return(self.var_declare())
+        elif self.curr_token.type == TokConsts.IDENTIFIER:
+            return(self.var_assign())
+        elif self.curr_token.type == TokConsts.PRINT:
+            return(self.eprint())
+        elif self.curr_token.type == TokConsts.IF:
+            return(self.ifstmt())
+
+        else:
+            self.raise_error(f'Unrecognized statement {self.curr_token} .', exit=1)
+
+
+    def ifstmt(self) -> None:
+        self.consume_token(TokConsts.IF)
+        condition = self.logical_or()
+        self.consume_token(TokConsts.LCURLY)
+        block = []
+        while self.curr_token.type != TokConsts.RCURLY:
+            block.append(self.statement())
+        node = IfElseBlock(condition, TokConsts.IF, block)
+        self.consume_token(TokConsts.RCURLY)
+
+        if self.curr_token.type == TokConsts.ELSE:
+            self.consume_token(TokConsts.ELSE)
+            self.consume_token(TokConsts.LCURLY)
+            block = []
+            while self.curr_token.type != TokConsts.RCURLY:
+                block.append(self.statement())
+            node.elsechild = block
+            self.consume_token(TokConsts.RCURLY)
+            
+        return node
 
     def eprint(self) -> Print:
         self.consume_token(TokConsts.PRINT)
@@ -377,6 +422,7 @@ class Parser:
         print_node = Print(self.logical_or())
         self.consume_token(TokConsts.RPARAN)
         self.consume_token(TokConsts.SEMICOLON)
+        # print(self.curr_token)
         return print_node
 
 
@@ -398,11 +444,9 @@ class Parser:
         if self.curr_token.type == TokConsts.ASSIGN:
             self.consume_token(TokConsts.ASSIGN)
             eq_node = self.logical_or()
-            # identifier = Identifier(curr_tok_var, curr_tok_dt , node)
             varassign = VarAssign(curr_tok_var, eq_node)
             vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  varassign)
         else:
-            # identifier = Identifier(curr_tok_var, curr_tok_dt , None)
             vardecl = VarDeclare(curr_tok_dt, curr_tok_var,  None)
             
         self.consume_token(TokConsts.SEMICOLON)
@@ -444,7 +488,6 @@ class Parser:
             chain_count_rel +=1
             node = RelationalEqualityOp(left=node, token=curr_token, right=self.expr())
         node.chain_count_rel = chain_count_rel
-        # print(node, '\n','---' ,node.chain_count_rel)
         return node
 
     def factor(self) -> Var:
@@ -462,6 +505,7 @@ class Parser:
             token = self.curr_token
             self.consume_token(TokConsts.IDENTIFIER)
             return Var(token.value)
+        # print('NNNNNNNNN', self.curr_token)
 
 
     def term(self) -> BinOp:
@@ -568,7 +612,19 @@ class Interpreter:
             if node.token.type == TokConsts.LOGICAL_AND:
                 return int((self.visit(node.lchild) and  self.visit(node.rchild)))
         
-            
+        if isinstance(node, IfElseBlock):
+            condition = self.visit(node.lchild)
+            if condition:
+                self.scope_container.add_scope(SymScope()) 
+                for stmt in node.rchild:
+                    self.visit(stmt)
+                self.scope_container.remove_scope()
+            elif node.elsechild:
+                self.scope_container.add_scope(SymScope())
+                for stmt in node.elsechild:
+                    self.visit(stmt)
+                self.scope_container.remove_scope()
+
             
         if isinstance(node , Var) :
             return self.scope_container.get_symbol(node.name).value

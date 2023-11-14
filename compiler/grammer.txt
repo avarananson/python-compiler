@@ -1,7 +1,9 @@
 
 prog : statements
 
-statements: var_declare  | statement | print
+statements: var_declare  | statement | print | if
+
+if : statements else : statements
 
 var_declare: type IDENTIFIER (( = expr ;) | ;)
 
