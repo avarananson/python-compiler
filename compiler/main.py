@@ -4,8 +4,66 @@ import os
 from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
                         callprintinstr, textinstr, relationalequalityinstr, logicalistr
 from dataclasses import dataclass, field
-from typing import List
+from typing import List ,Union, Any
 from enum import Enum
+UNKNOWN, LOCAL = 'unknown', 'local'
+
+ 
+@dataclass
+class SymScope:
+    name:str = LOCAL
+    _table:dict = field(default_factory=dict)
+    level:Union[str, int] = UNKNOWN
+    prev: Union[Any, None] = None
+    
+class ScopeContainer:
+    def __init__(self) -> None:
+        self.current_scope_head = None
+        self.prev = None
+        self.total_active_scopes = 0
+    
+    def add_scope(self, scope:SymScope) -> None:
+        if not self.current_scope_head and not self.prev:
+            self.current_scope_head = scope
+            self.current_scope_head.level = 0
+            # self.prev = scope
+        else:
+            scope.prev = self.current_scope_head
+            self.current_scope_head = scope
+            self.total_active_scopes +=1
+            self.current_scope_head.level = self.current_scope_head.prev.level+1
+        
+        # print(f'added scope {scope}')
+        # print(f'Current scopes present are :')
+        # print('+++++++++++++++++++++++++++++++++++')
+        sc = self.current_scope_head
+        # while sc:
+        #     print(f'sc {sc.level} ==> {sc._table}')
+        #     sc = sc.prev
+        # print('+++++++++++++++++++++++++++++++++++')
+    
+    def get_symbol(self, name:str) -> Any:
+        curr_scope = self.current_scope_head
+        while curr_scope:
+            if name in curr_scope._table:
+                return curr_scope._table[name]
+            curr_scope = curr_scope.prev
+        raise ValueError(f'ERROR: {name} symbol not found defined. ')
+
+    def remove_scope(self) -> None:
+        if not self.current_scope_head:
+            print(f'Removing scope {self.current_scope_head} at level {self.current_scope_head.level} ..')
+            prev = self.current_scope_head.prev
+            self.current_scope_head = prev
+        print('After removal , below are the remaining ones.....')
+        print('====================================')
+        sc = self.current_scope_head
+        while sc:
+            print(f'sc {sc.level} ==> {sc._table}')
+            sc = sc.prev
+        print('====================================')
+        
+
 
 class TokConsts(str,Enum):
     INTEGER = 'integer'
@@ -120,20 +178,20 @@ class NumLiteral(AST):
 
 
 class Lexer:
-    def __init__(self, strcode) -> None:
+    def __init__(self, strcode: str) -> None:
         self.strcode = strcode
         self.codelen = len(strcode)
         self.identified_str_token = None
         self.curr_pos = 0
         self.curr_char = self.strcode[self.curr_pos]
 
-    def raise_error(self, msg, exit):
+    def raise_error(self, msg:str, exit:int) -> None:
         if exit:
             raise Exception(msg)
         else:
              print(msg)
 
-    def consume_char(self):
+    def consume_char(self) -> str:
         curr_char = self.curr_char
         self.curr_pos += 1
         if self.curr_pos >= self.codelen:
@@ -142,27 +200,27 @@ class Lexer:
             self.curr_char = self.strcode[self.curr_pos]
         return curr_char
 
-    def is_whitespace(self):
+    def is_whitespace(self) -> bool:
         return self.curr_char.isspace()
     
-    def skip_whitespace(self):
+    def skip_whitespace(self) -> None:
         self.consume_char()
 
     
-    def integer(self):
+    def integer(self) -> int:
         res = ''
         while self.curr_char and not self.is_whitespace() and self.curr_char.isdigit():
             res += self.consume_char()
         return int(res)
             
-    def peek(self):
+    def peek(self) -> str:
         if self.curr_pos < self.codelen-1:
             # print(self.codelen, self.curr_pos, self.strcode)
             return self.strcode[self.curr_pos + 1]
         else:
             return TokConsts.EOF
 
-    def get_next_token_word(self):
+    def get_next_token_word(self) -> str:
         res = ''
         while self.curr_char != TokConsts.EOF and self.curr_char.isalpha():
             res += self.consume_char()
@@ -174,16 +232,16 @@ class Lexer:
         NOTE: use this function throughout
         '''
         pass
-    def is_comment(self):
+    def is_comment(self) -> bool:
         if self.curr_char == '/' and self.peek() == '/':
             return True
         return False
     
-    def skip_comments(self):
+    def skip_comments(self) -> None:
         while self.curr_char != TokConsts.EOF and self.curr_char != '\n': 
             self.consume_char()
 
-    def get_next_token(self):
+    def get_next_token(self) -> Token:
         while self.curr_char != TokConsts.EOF:
             if self.is_whitespace():
                 self.skip_whitespace()
@@ -270,24 +328,24 @@ class Lexer:
             
 class Parser:
 
-    def __init__(self, lexer) -> None:
+    def __init__(self, lexer:Lexer) -> None:
         self.curr_token = lexer.get_next_token()
         self.lexer = lexer
     
-    def raise_error(self, msg, exit):
+    def raise_error(self, msg:str, exit:int) -> None:
         if exit:
             raise Exception(msg)
         else:
             print(msg)
 
-    def consume_token(self, TYPE):
+    def consume_token(self, TYPE:str) -> None:
         if self.curr_token.type != TYPE:
-            print(self.curr_token.type ,TYPE)
+            # print(self.curr_token.type ,TYPE)
             self.raise_error(f'Syntax error at position {self.lexer.curr_pos }', exit=1)
         else:
             self.curr_token = self.lexer.get_next_token()
 
-    def parse(self):
+    def parse(self) -> Main:
         stmts =  self.statements()
         root = Main()
         for node in stmts:
@@ -295,7 +353,7 @@ class Parser:
         return root
 
     
-    def statements(self):
+    def statements(self) ->None:
         _statements = []
         # print(self.curr_token)
         while self.curr_token.type != TokConsts.EOF:
@@ -313,7 +371,7 @@ class Parser:
 
         return _statements
 
-    def eprint(self):
+    def eprint(self) -> Print:
         self.consume_token(TokConsts.PRINT)
         self.consume_token(TokConsts.LPARAN)
         print_node = Print(self.logical_or())
@@ -322,7 +380,7 @@ class Parser:
         return print_node
 
 
-    def var_assign(self):
+    def var_assign(self) -> VarAssign:
         curr_tok_var = Var(self.curr_token.value)
         self.consume_token(TokConsts.IDENTIFIER)
         self.consume_token(TokConsts.ASSIGN)
@@ -331,7 +389,7 @@ class Parser:
         self.consume_token(TokConsts.SEMICOLON)
         return varassign
 
-    def var_declare(self):
+    def var_declare(self) -> VarDeclare:
         curr_tok_dt = self.curr_token
         self.consume_token(TokConsts.DATATYPE)
         curr_tok_var = Var(self.curr_token.value)
@@ -350,7 +408,7 @@ class Parser:
         self.consume_token(TokConsts.SEMICOLON)
         return vardecl
     
-    def logical_or(self):
+    def logical_or(self) -> LogicalOP:
         node = self.logical_and()
         while self.curr_token.type == TokConsts.LOGICAL_OR and self.curr_token!= TokConsts.EOF:
             curr_token = self.curr_token
@@ -358,7 +416,7 @@ class Parser:
             node = LogicalOP(left=node, token=curr_token, right=self.logical_and())
         return node
     
-    def logical_and(self):
+    def logical_and(self) -> LogicalOP:
         node = self.equality()
         while self.curr_token.type == TokConsts.LOGICAL_AND and self.curr_token!= TokConsts.EOF:
             curr_token = self.curr_token
@@ -366,7 +424,7 @@ class Parser:
             node = LogicalOP(left=node, token=curr_token, right=self.equality())
         return node
 
-    def equality(self):
+    def equality(self) ->RelationalEqualityOp:
         chain_count_eq = 0
         node = self.relational()
         while self.curr_token.type in (TokConsts.EQUAL, TokConsts.NT_EQUAL) and self.curr_token!= TokConsts.EOF:
@@ -377,7 +435,7 @@ class Parser:
         node.chain_count_eq = chain_count_eq
         return node
 
-    def relational(self):
+    def relational(self) -> RelationalEqualityOp:
         chain_count_rel = 0
         node = self.expr()
         while self.curr_token.type in (TokConsts.GREATER, TokConsts.LESSTHAN) and self.curr_token!= TokConsts.EOF:
@@ -389,7 +447,7 @@ class Parser:
         # print(node, '\n','---' ,node.chain_count_rel)
         return node
 
-    def factor(self):
+    def factor(self) -> Var:
         # print()
         if self.curr_token.type == TokConsts.LPARAN:
             self.consume_token(TokConsts.LPARAN)
@@ -406,7 +464,7 @@ class Parser:
             return Var(token.value)
 
 
-    def term(self):
+    def term(self) -> BinOp:
         node = self.factor()
         while self.curr_token.type in (TokConsts.MULT, TokConsts.DIV) and self.curr_token != TokConsts.EOF:
             tok = self.curr_token
@@ -421,7 +479,7 @@ class Parser:
 
     # def prog(self)
     
-    def expr(self):
+    def expr(self) -> BinOp:
         """
         expr   : term ((PLUS | SUB) term)*
         term   : factor ((MULT | DIV) factor)* 
@@ -444,21 +502,22 @@ class Parser:
         return node
 
 class Interpreter:
-    def __init__(self, root) -> None:
+    def __init__(self, root:Main) -> None:
         self.root = root
-        self.__SYMBOL_TABLE = {}
+        self.scope_container = ScopeContainer()
+        self.scope_container.add_scope(SymScope('GLOBAL')) 
     
-    def interpret(self):
+    def interpret(self) -> None:
         for child in self.root.children:
             self.visit(child)
 
-    def raise_error(self, msg, exit):
+    def raise_error(self, msg:str, exit:int) -> None:
         if exit:
             raise Exception(msg)
         else:
              print(msg)
 
-    def visit(self, node):
+    def visit(self, node: Union[BinOp, NumLiteral, VarAssign, RelationalEqualityOp, LogicalOP, Var,Print]) -> Union[int, str, None]:
 
         if isinstance(node, BinOp):
             if node.token.type == TokConsts.PLUS:
@@ -475,7 +534,7 @@ class Interpreter:
          
         if isinstance(node, VarDeclare):
             node_name = node.var.name
-            self.__SYMBOL_TABLE[node_name] = node
+            self.scope_container.current_scope_head._table[node_name] = node
             value = self.visit(node.value) if node.value else None
             node.value = value
             # self.__SYMBOL_TABLE[node_name] = node
@@ -484,7 +543,7 @@ class Interpreter:
             node_name = node.var.name
             value = self.visit(node.right_expr) 
             # node.value = value
-            self.__SYMBOL_TABLE[node_name].value = value
+            self.scope_container.current_scope_head._table[node_name].value = value
             return value
         
         if isinstance(node, RelationalEqualityOp):
@@ -503,7 +562,7 @@ class Interpreter:
             if node.token.type == TokConsts.NT_EQUAL:
                 return int((self.visit(node.lchild) !=  self.visit(node.rchild)))
             
-        if isinstance(node, LogicalOP):
+        if isinstance(node, LogicalOP) :
             if node.token.type == TokConsts.LOGICAL_OR:
                 return int((self.visit(node.lchild) or  self.visit(node.rchild)))
             if node.token.type == TokConsts.LOGICAL_AND:
@@ -511,8 +570,8 @@ class Interpreter:
         
             
             
-        if isinstance(node , Var):
-            return self.__SYMBOL_TABLE[node.name].value
+        if isinstance(node , Var) :
+            return self.scope_container.get_symbol(node.name).value
         
         if isinstance(node ,Print):
             print(self.visit(node.value))
@@ -531,11 +590,11 @@ class Compile:
         # self.all_available_regs = { "r8", "r9", "r10", "r11" }
     
     @property
-    def varcount(self):
+    def varcount(self) -> int:
         self.__varcount +=1
         return self.__varcount
 
-    def get_required_pre_asm(self):
+    def get_required_pre_asm(self) -> None:
         ##############
         #try to optimize this rather than extending and creating of large list
         ############## 
@@ -543,11 +602,11 @@ class Compile:
         self.asmList.append(printintinstr)
         self.asmList.append(startinstr)
     
-    def get_required_post_asm(self):
+    def get_required_post_asm(self) -> None:
         self.asmList[0] = self.asmList[0].format(self.bss)
         self.asmList.append(exitinstr.format(0))
 
-    def __gen_code_binary_op(self, opA, opB, otype):
+    def __gen_code_binary_op(self, opA:Token, opB:Token, otype:str) -> None:
         # self.__get_free_reg()
         if otype == TokConsts.PLUS:
             self.asmList.append(addinstr)
@@ -559,26 +618,26 @@ class Compile:
             self.asmList.append(divinstr)
             
 
-    def __gen_code_numliteral(self, num):
+    def __gen_code_numliteral(self, num:int) -> None:
         self.asmList.append(numlitinstr.format(num))
 
-    def __gen_code_assign(self, node_name):
+    def __gen_code_assign(self, node_name:str) -> None:
         self.asmList.append(assigninstr.format(node_name))
     
-    def __gen_code_get_variable(self,node_name):
+    def __gen_code_get_variable(self,node_name:str) -> None:
         self.asmList.append(getvarinstr.format(node_name))
     
-    def __gen_code_relational_equality_op(self,opA, opB, token):
+    def __gen_code_relational_equality_op(self,opA:Token, opB:Token, token:str) -> None:
 
         self.asmList.append(relationalequalityinstr.format(self.map_relational_eq[token]))
     
-    def __gen_code_logical_op(self, opA, opB, token):
+    def __gen_code_logical_op(self, opA:Token, opB:Token, token:str) -> None:
         self.asmList.append(logicalistr.format(self.map_logical[token]))
     
-    def __gen_code_print(self):
+    def __gen_code_print(self) -> None:
         self.asmList.append(callprintinstr)
 
-    def visit(self, node):
+    def visit(self, node:Union[BinOp, NumLiteral, VarAssign, RelationalEqualityOp, LogicalOP, Var,Print]) -> None:
         if isinstance(node, BinOp):
             if node.token.type == TokConsts.PLUS:
                 self.__gen_code_binary_op(self.visit(node.lchild), self.visit(node.rchild), TokConsts.PLUS)
@@ -633,11 +692,11 @@ class Compile:
             self.visit(node.value)
             self.__gen_code_print()
 
-    def write_asm(self):
+    def write_asm(self) -> None:
         with open(self.asmFile, 'w') as asm:
             asm.writelines('\n'.join(self.asmList))
 
-    def compile_ast(self, root):
+    def compile_ast(self, root:Main) -> None:
         self.get_required_pre_asm()
         for child in root.children:
             self.visit(child)
