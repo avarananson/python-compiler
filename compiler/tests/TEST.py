@@ -16,6 +16,17 @@ os.system('python ../main.py test_logical.an -sim > o1')
 os.system('python ../main.py test_logical.an -compile > o2')
 print('Testing logical equality ops -> ', open('o','r').read() == open('o1','r').read() == open('o2','r').read())
 
+# os.system('python test_if_else1.py > o')
+os.system('python ../main.py test_if_else1.an -sim > o1')
+os.system('python ../main.py test_if_else1.an -compile > o2')
+print('Testing if else 1  -> ',  open('o1','r').read() == open('o2','r').read())
+
+# os.system('python test_logical.py > o')
+os.system('python ../main.py test_if_else2.an -sim > o1')
+os.system('python ../main.py test_if_else2.an -compile > o2')
+print('Testing if else 2 -> ', open('o1','r').read() == open('o2','r').read())
+
+print('|| Cleaning up ||')
 os.remove('hello')
 os.remove('hello.o')
 os.remove('o')
