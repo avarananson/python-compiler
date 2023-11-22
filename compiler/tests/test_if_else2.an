@@ -1,0 +1,50 @@
+int x = 22;
+int b =9;
+if (1 && 0 && (x==22 || b==8))
+{	
+	int x;
+	int b =100;
+	x =2;
+	b = b/2;
+	print(x);
+	print(b);
+	if (x != 2)
+	{
+		int x =44;
+		print(x);
+	}
+	else
+	{
+		int x =33;
+		print(x);
+		if x==33
+		{
+			int x=11;
+			int b =88;
+			print(11);
+		}
+	}
+}
+else
+{
+	print(555);
+	int xx;
+	int bb =66;
+	xx =99;
+	bb = b/2;
+	print(xx);
+	print(bb);
+	if xx !=99
+	{
+		int b =77;
+		print(b);
+	}
+	else
+	{
+		int b=19;
+		print(b+1);
+	}
+}
+
+print(x);
+print(b);
