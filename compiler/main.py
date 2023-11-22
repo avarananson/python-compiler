@@ -2,7 +2,8 @@
 import argparse
 import os
 from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
-                        callprintinstr, textinstr, relationalequalityinstr, logicalistr
+                        callprintinstr, textinstr, relationalequalityinstr, logicalistr, preblockinstr, blockconditioninstr, jneinstr, postblockconditioninstr,\
+                        jmpinstr, localvarinstr
 from dataclasses import dataclass, field
 from typing import List ,Union, Any
 from enum import Enum
@@ -44,8 +45,12 @@ class SymScope:
     _table:dict = field(default_factory=dict)
     level:Union[str, int] = UNKNOWN
     prev: Union[Any, None] = None
+    var_id : int = 0
+
     
 class ScopeContainer:
+    # Linked list ds for storing block scopes
+    # |local_scope2| -->(prev) |local_scope1| -->(prev) |global_scope|
     def __init__(self) -> None:
         self.current_scope_head = None
         self.prev = None
@@ -62,22 +67,13 @@ class ScopeContainer:
             self.total_active_scopes +=1
             self.current_scope_head.level = self.current_scope_head.prev.level+1
         
-        # print(f'added scope {scope}')
-        # print(f'Current scopes present are :')
-        # print('+++++++++++++++++++++++++++++++++++')
-        sc = self.current_scope_head
-        # while sc:
-        #     print(f'sc {sc.level} ==> {sc._table}')
-        #     sc = sc.prev
-        # print('+++++++++++++++++++++++++++++++++++')
-    
     def get_symbol(self, name:str) -> Any:
         curr_scope = self.current_scope_head
         while curr_scope:
             if name in curr_scope._table:
                 return curr_scope._table[name]
             curr_scope = curr_scope.prev
-        raise ValueError(f'ERROR: {name} symbol not found defined. ')
+        raise ValueError(f'ERROR: {name} symbol not defined. ')
 
     def remove_scope(self) -> None:
         if self.current_scope_head:
@@ -91,7 +87,45 @@ class ScopeContainer:
             # print(f'sc {sc.level} ==> {sc._table}')
             sc = sc.prev
         # print('====================================')
+
+class CompileScopeContainer(ScopeContainer):
+    def __init__(self) -> None:
+        super().__init__()   
+
+    def get_symbol(self, name:str) -> Any:
+
+        # print(f'========= CURRENT SCOPES NOW FOR  {name}===========')
+        # curr_scope1= self.current_scope_head
+        # while curr_scope1:
+        #     print(curr_scope1._table)
+        #     curr_scope1 = curr_scope1.prev
+        # print('========= END  NOW ===========')
+
+        curr_scope = self.current_scope_head
+        if name in curr_scope._table:
+            idx = curr_scope._table[name].var_id
+            # f = 'GLOBAL' if curr_scope.prev == None else 'FIRST'
+            # print(F'found varibale in {f} scope in level {curr_scope.level}',name)
+            return f'-{(8 * idx)}'
+        curr_scope = curr_scope.prev
+        prev_table_len = 0
+        while curr_scope and curr_scope.name == LOCAL:
+            if name in curr_scope._table:
+                tot_variables_cnt = len(curr_scope._table)
+                idx = curr_scope._table[name].var_id
+                idx = ((tot_variables_cnt - idx) + 1 + prev_table_len) * 8 
+                # print(f'found varibale in LOCAL scope {curr_scope.level}', name)
+                return  f'+{idx}'
+            prev_table_len = prev_table_len + len(curr_scope._table) + 1
+
+            curr_scope = curr_scope.prev
         
+        if name in curr_scope._table:
+            # print(f'found varibale in GLOBAL scope {curr_scope.level}',name)
+            return '-1'
+        
+        raise ValueError(f'ERROR: {name} symbol not defined. ')
+
 @dataclass
 class BssData:
     declared_data : List[list] = field(default_factory=list)
@@ -639,8 +673,10 @@ class Compile:
         self.asmFile = './compile.asm'
         self.asmList = ["{}"]
         self.bss = BssData()
-        self.__SYMBOL_TABLE = {}
+        self.scope_container = CompileScopeContainer()
+        self.scope_container.add_scope(SymScope('GLOBAL'))
         self.__varcount = 0
+        self.label_count = 0
         self.map_relational_eq = {TokConsts.GREATER: 'cmovg', TokConsts.LESSTHAN: 'cmovl', TokConsts.EQUAL: 'cmove', TokConsts.NT_EQUAL: 'cmovne'}
         self.map_logical = {TokConsts.LOGICAL_AND:'and', TokConsts.LOGICAL_OR:'or'}
         # self.all_available_regs = { "r8", "r9", "r10", "r11" }
@@ -649,6 +685,10 @@ class Compile:
     def varcount(self) -> int:
         self.__varcount +=1
         return self.__varcount
+    
+    def gen_label(self):
+        self.label_count += 1
+        return f'L{self.label_count}'
 
     def get_required_pre_asm(self) -> None:
         ##############
@@ -680,7 +720,7 @@ class Compile:
     def __gen_code_assign(self, node_name:str) -> None:
         self.asmList.append(assigninstr.format(node_name))
     
-    def __gen_code_get_variable(self,node_name:str) -> None:
+    def __gen_code_get_global_variable(self,node_name:str) -> None:
         self.asmList.append(getvarinstr.format(node_name))
     
     def __gen_code_relational_equality_op(self,opA:Token, opB:Token, token:str) -> None:
@@ -692,6 +732,30 @@ class Compile:
     
     def __gen_code_print(self) -> None:
         self.asmList.append(callprintinstr)
+
+    def __gen_code_pre_stack_block(self) -> None:
+        self.asmList.append(preblockinstr)
+    
+    def __gen_code_check_block_condition(self) -> None:
+        self.asmList.append(blockconditioninstr)
+    
+    def __gen_code_jne(self, label) -> None:
+        self.asmList.append(jneinstr.format(label))
+
+    def __gen_code_add_label(self, label) -> None:
+        self.asmList.append(f'  {label}:')
+
+    def __gen_code_jmp(self,label) -> None:
+        self.asmList.append(jmpinstr.format(label))
+    
+    def __gen_code_post_stack_block(self) -> None:
+        self.asmList.append(postblockconditioninstr)
+    
+    def __gen_code_get_local_variable(self, idx) -> None:
+        self.asmList.append(localvarinstr.format(idx)) 
+
+
+
 
     def visit(self, node:Union[BinOp, NumLiteral, VarAssign, RelationalEqualityOp, LogicalOP, Var,Print]) -> None:
         if isinstance(node, BinOp):
@@ -709,22 +773,26 @@ class Compile:
         
         if isinstance(node, VarDeclare):
             node_name = node.var.name
-            self.bss.add_variable(node_name)
-            self.__SYMBOL_TABLE[node_name] = node
+            if self.scope_container.current_scope_head.name == 'GLOBAL':
+                self.bss.add_variable(node_name)
+            self.scope_container.current_scope_head._table[node_name] = node
+            # self.__SYMBOL_TABLE[node_name] = node
             self.visit(node.value) if node.value else None
             # self.__SYMBOL_TABLE[node_name] = node
 
         if isinstance(node, VarAssign):
             node_name = node.var.name
             self.visit(node.right_expr)
-            self.__gen_code_assign(node_name) 
-            # node.value = value
-            self.__SYMBOL_TABLE[node_name]._id = self.varcount
+            if self.scope_container.current_scope_head.name == 'GLOBAL':
+                self.__gen_code_assign(node_name)
+            elif  self.scope_container.current_scope_head.name == LOCAL:
+                self.scope_container.current_scope_head.var_id +=1
+                self.scope_container.current_scope_head._table[node_name].var_id = self.scope_container.current_scope_head.var_id 
 
         if isinstance(node, RelationalEqualityOp):
 
             if getattr(node,'chain_count_eq',0)>1 or getattr(node,'chain_count_rel',0)>1:
-                self.raise_error(f'Chained equality/comparison operators are found. It could result in ambigius results',exit=1)
+                self.raise_error(f'Chained equality/comparison operators are found. It could result in ambigous results',exit=1)
             if node.token.type == TokConsts.GREATER:
                 self.__gen_code_relational_equality_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.GREATER)
             if node.token.type == TokConsts.LESSTHAN:
@@ -740,9 +808,41 @@ class Compile:
             
             if node.token.type == TokConsts.LOGICAL_AND:
                 self.__gen_code_logical_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.LOGICAL_AND)
+        
+        if isinstance(node, IfElseBlock):
+            self.visit(node.lchild)
+            self.__gen_code_check_block_condition()
+            self.__gen_code_pre_stack_block()
+            self.scope_container.add_scope(SymScope())
+            elselabel = self.gen_label()
+            self.__gen_code_jne(elselabel) 
+            for stmt in node.rchild:
+                self.visit(stmt)
+            endlabel = self.gen_label()
+            endlabel = elselabel if not node.elsechild else endlabel
+            self.__gen_code_jmp(endlabel)
+            if node.elsechild:
+                self.scope_container.remove_scope()
+                self.scope_container.add_scope(SymScope())
+                self.__gen_code_add_label(elselabel)
+                for stmt in node.elsechild:
+                    self.visit(stmt)
+            self.scope_container.remove_scope()
+            self.__gen_code_add_label(endlabel)
+            self.__gen_code_post_stack_block()
 
         if isinstance(node , Var):
-            self.__gen_code_get_variable(node.name)
+            if self.scope_container.current_scope_head.name == 'GLOBAL':
+                # If its directly started in global
+                self.__gen_code_get_global_variable(node.name)
+            elif self.scope_container.current_scope_head.name == LOCAL:
+                # Started from some local scope
+                idx = self.scope_container.get_symbol(node.name)
+                if idx == '-1':
+                    # Means the search ended in global scope 
+                    self.__gen_code_get_global_variable(node.name)
+                else:
+                    self.__gen_code_get_local_variable(idx)
         
         if isinstance(node ,Print):
             self.visit(node.value)
@@ -799,6 +899,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
