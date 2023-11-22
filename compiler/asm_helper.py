@@ -4,7 +4,7 @@ print:
     sub     rsp, 40
     mov     BYTE [rsp+31], 10
     lea     rcx, [rsp+30]
-.L2:
+.L0:
     mov     rax, rdi
     lea     r8, [rsp+32]
     mul     r9
@@ -21,7 +21,7 @@ print:
     mov     rdx, rcx
     sub     rcx, 1
     cmp     rax, 9
-    ja      .L2
+    ja      .L0
     lea     rax, [rsp+32]
     mov     edi, 1
     sub     rdx, rax
@@ -109,4 +109,27 @@ logicalistr = """; logical instr
     {} al, cl
     movzx eax, al
     push rax
+"""
+preblockinstr = """; pre block stack instr
+    push rbp          ; Save the old base pointer
+    mov rbp, rsp      ; Set the new base pointer
+"""
+blockconditioninstr = """ ;block condition check
+    pop rax
+    cmp rax, 1
+"""
+jneinstr = """;jne
+    jne {}
+"""
+jmpinstr = """  jmp {};jmp 
+"""
+postblockconditioninstr ="""; post stack block
+    mov rsp, rbp      ; Restore the old base pointer
+    pop rbp 
+"""
+# pushinstr ="""; push instr
+#     mov rsp, rbp      ; push variable
+# """
+localvarinstr = """ ; get local variable
+    push qword [rbp{}]
 """
