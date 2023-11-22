@@ -1,0 +1,63 @@
+int x = 22;
+int b =9;
+if (1 && 1 && (x==22 || b==8))
+{	int x;
+	int b =100;
+	x =2;
+	b = b/2;
+	print(x);
+	print(b);
+}
+print(b);
+print(x);
+
+if (1 && 1 && (x==22 || b==8))
+{	int x;
+	int b =50;
+	x =66;
+	b = b/2;
+	int u =11;
+	print(x);
+	print(b);
+	print(u);
+}
+
+print(x);
+print(b);
+int y = x+b;
+print(y);
+// print(u);
+
+
+if (x == 22)
+{
+	int x =11;
+	int b = 8;
+	if (x ==11)
+	{
+		int x =9;
+		int y =100;
+		print(x);
+		print(y);
+		if (x ==11 || b==8)
+		{
+			int z = 99;
+			int y = 88;
+			print(y);
+		}
+		if (0)
+		{
+			print(1);
+		}
+		else{
+			int y =55;
+			print(y);
+		}
+		print(y);
+	}
+	print(x);
+	print(b);
+}
+
+print(x);
+print(b);
