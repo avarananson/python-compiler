@@ -1,1 +1,61 @@
 
+ int x;
+int y=1;
+print(x);
+
+if (1)
+{
+    x = 10;
+    print(x);
+    if (1)
+    {
+        int x ;
+
+        if (0)
+        {
+            int y;
+        }
+        else{
+            x = 100;
+        }
+            print(x);
+    }
+    
+    if (0)
+    {
+        int y =33;
+        int z = 99;
+        
+    }
+    else
+    {
+        int y =22;
+        int z = 88; 
+            print(y);
+            print(z);
+            if (1)
+            {
+                z = 66;
+                print(z);
+                if (1)
+                {
+                    z = 77;
+                    print(z);
+                }
+            print(z);
+            print(y);
+                print(x);
+            }
+    if (1)
+    {
+        x = 55;
+            print(x);
+            print(y);
+            y = 44;
+        
+    }
+        print(y);
+    }
+}
+print(x);
+print(y);
