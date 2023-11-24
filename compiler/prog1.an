@@ -1,19 +1,90 @@
+// int x =10;
+// if (x == 10)
+// {
+//     int y = 5;
+//     if (1)
+//     {
+        
+//         int x = 99;
+        
+//         if (0)
+//         {
+//             int x =77;
+//         }
+//         else
+//         {
+//             x =88;
+//             y=66;
+//             print(x);
+//             print(y);
+//         }
+//     print(x);
+//     print(y); 
+//     }
+//     if (1)
+//     {
+//         int x = 100;
+//         // int x = 9;
+//         print(x);
+//         if (0)
+//         {
+//             int  y =10;
+//         }
+//         else
+//         {
+//             x =44;
+//             y =77;
+            
+//         }
+        
+//     }
+//         print(x);
+//     print(y); 
+//     if (1)
+//        {
+//            int b =33;
+//            if (0)
+//            {
+//                b =110;
+//            }
+//            else
+//            {
+//                b = 44;
+//                int c =88;
+//            }
+//            x =55;
+//           print(b); 
+//        }
+//        print(x); 
+    
+// }
+// print(x);
+
+
 int x;
 
+print(x);
 
-x = 0 && 0 && 0;
-int y=1;
-int z=1;
-int k = (1 && 1) && (0 || 1);
-print(k);
-int a ;
-a = (y==z) && (1==1);
-print(a);
+if (1)
+{
+    x = 10;
+    print(x);
+    if (1)
+    {
+        int x ;
 
-int b;
-int c=10;
-b = (c==y) || (y>z);
-print(b);
+        if (0)
+        {
+            int y;
+        }
+        else{
+            x = 100;
+        }
+        print(x);
+    }
+}
+print(x);
 
-b= (c>y) && (z>0);
-print(b);
+
+
+
