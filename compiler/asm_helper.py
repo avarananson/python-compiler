@@ -133,3 +133,7 @@ postblockconditioninstr ="""; post stack block
 localvarinstr = """ ; get local variable
     push qword [rbp{}]
 """
+changestackvarinstr = """ ; change stack var
+    pop rax
+    mov [rbp{}],  rax
+"""
