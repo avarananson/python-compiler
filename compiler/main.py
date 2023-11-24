@@ -3,7 +3,7 @@ import argparse
 import os
 from asm_helper import printintinstr, exitinstr, startinstr, addinstr, numlitinstr, divinstr, multinstr, subinstr,assigninstr, getvarinstr,\
                         callprintinstr, textinstr, relationalequalityinstr, logicalistr, preblockinstr, blockconditioninstr, jneinstr, postblockconditioninstr,\
-                        jmpinstr, localvarinstr
+                        jmpinstr, localvarinstr, changestackvarinstr
 from dataclasses import dataclass, field
 from typing import List ,Union, Any
 from enum import Enum
@@ -66,7 +66,13 @@ class ScopeContainer:
             self.current_scope_head = scope
             self.total_active_scopes +=1
             self.current_scope_head.level = self.current_scope_head.prev.level+1
-        
+
+    def declare_symbol_to_head(self,node_name:str, node:Any) -> None:
+        if node_name in self.current_scope_head._table:
+            raise ValueError(f'ERROR: {node_name} symbol already defined in the scope. ')
+        self.current_scope_head._table[node_name] = node
+        # self.current_scope_head._table[node_name].value = 0  # By default we assign not garbage, but 0
+
     def get_symbol(self, name:str) -> Any:
         curr_scope = self.current_scope_head
         while curr_scope:
@@ -74,6 +80,22 @@ class ScopeContainer:
                 return curr_scope._table[name]
             curr_scope = curr_scope.prev
         raise ValueError(f'ERROR: {name} symbol not defined. ')
+    
+    def assign_symbol(self, name:str, value:int) -> None:
+        curr_scope = self.current_scope_head
+        # print(f'========= CURRENT SCOPES NOW FOR  {name}===========')
+        # curr_scope1= self.current_scope_head
+        # while curr_scope1:
+        #     print(curr_scope1.name, curr_scope1._table)
+        #     curr_scope1 = curr_scope1.prev
+        # print('========= END  NOW ===========')
+        while curr_scope:
+            if name in curr_scope._table:
+                curr_scope._table[name].value = value
+                break
+            curr_scope = curr_scope.prev
+        else:
+            raise ValueError(f'ERROR: Assigning to an undeclared variable {name}.')
 
     def remove_scope(self) -> None:
         if self.current_scope_head:
@@ -101,12 +123,14 @@ class CompileScopeContainer(ScopeContainer):
         #     curr_scope1 = curr_scope1.prev
         # print('========= END  NOW ===========')
 
+
+
         curr_scope = self.current_scope_head
         if name in curr_scope._table:
+            if curr_scope.prev == None:
+                return '-1'          # IF IN GLOBAL AT THE START ITSELF
             idx = curr_scope._table[name].var_id
-            # f = 'GLOBAL' if curr_scope.prev == None else 'FIRST'
-            # print(F'found varibale in {f} scope in level {curr_scope.level}',name)
-            return f'-{(8 * idx)}'
+            return f'-{(8 * idx)}'                       # IF ITS NOT IN GLOBAL AND IN THE FIRST SCOPE ITSELF
         curr_scope = curr_scope.prev
         prev_table_len = 0
         while curr_scope and curr_scope.name == LOCAL:
@@ -115,14 +139,14 @@ class CompileScopeContainer(ScopeContainer):
                 idx = curr_scope._table[name].var_id
                 idx = ((tot_variables_cnt - idx) + 1 + prev_table_len) * 8 
                 # print(f'found varibale in LOCAL scope {curr_scope.level}', name)
-                return  f'+{idx}'
+                return  f'+{idx}'                   # IF ITS IN LATER ON DOWN SCOPE
             prev_table_len = prev_table_len + len(curr_scope._table) + 1
 
             curr_scope = curr_scope.prev
         
-        if name in curr_scope._table:
+        if curr_scope and  name in curr_scope._table :
             # print(f'found varibale in GLOBAL scope {curr_scope.level}',name)
-            return '-1'
+            return '-1'                # IF STILL NOT FOUND AND NOW ITS IN GLOBAL NOW
         
         raise ValueError(f'ERROR: {name} symbol not defined. ')
 
@@ -612,16 +636,15 @@ class Interpreter:
          
         if isinstance(node, VarDeclare):
             node_name = node.var.name
-            self.scope_container.current_scope_head._table[node_name] = node
-            value = self.visit(node.value) if node.value else None
+            self.scope_container.declare_symbol_to_head(node_name, node)
+            value = self.visit(node.value) if node.value else 0
             node.value = value
-            # self.__SYMBOL_TABLE[node_name] = node
 
         if isinstance(node, VarAssign):
             node_name = node.var.name
-            value = self.visit(node.right_expr) 
-            # node.value = value
-            self.scope_container.current_scope_head._table[node_name].value = value
+            value = self.visit(node.right_expr)
+            self.scope_container.assign_symbol(node_name, value)
+            # self.scope_container.current_scope_head._table[node_name].value = value
             return value
         
         if isinstance(node, RelationalEqualityOp):
@@ -718,7 +741,10 @@ class Compile:
         self.asmList.append(numlitinstr.format(num))
 
     def __gen_code_assign(self, node_name:str) -> None:
-        self.asmList.append(assigninstr.format(node_name))
+        # if val == 0:
+        #     self.asmList.append(assignconstinstr.format(node_name, 0))
+        # else:
+            self.asmList.append(assigninstr.format(node_name))
     
     def __gen_code_get_global_variable(self,node_name:str) -> None:
         self.asmList.append(getvarinstr.format(node_name))
@@ -751,9 +777,11 @@ class Compile:
     def __gen_code_post_stack_block(self) -> None:
         self.asmList.append(postblockconditioninstr)
     
-    def __gen_code_get_local_variable(self, idx) -> None:
+    def __gen_code_get_local_variable(self, idx:str) -> None:
         self.asmList.append(localvarinstr.format(idx)) 
 
+    def __gen_code_change_stack_var(self, idx:str) -> None:
+        self.asmList.append(changestackvarinstr.format(idx))
 
 
 
@@ -773,21 +801,28 @@ class Compile:
         
         if isinstance(node, VarDeclare):
             node_name = node.var.name
+            self.scope_container.declare_symbol_to_head(node_name , node)
             if self.scope_container.current_scope_head.name == 'GLOBAL':
                 self.bss.add_variable(node_name)
-            self.scope_container.current_scope_head._table[node_name] = node
-            # self.__SYMBOL_TABLE[node_name] = node
+                # Defaulting the declared variable to be 0 always not garbage value
+                self.__gen_code_numliteral(0)
+                self.__gen_code_assign(node_name)
+            elif  self.scope_container.current_scope_head.name == LOCAL:
+                self.__gen_code_numliteral(0)
+            self.scope_container.current_scope_head.var_id +=1
+            self.scope_container.current_scope_head._table[node_name].var_id = self.scope_container.current_scope_head.var_id 
             self.visit(node.value) if node.value else None
             # self.__SYMBOL_TABLE[node_name] = node
 
         if isinstance(node, VarAssign):
             node_name = node.var.name
             self.visit(node.right_expr)
-            if self.scope_container.current_scope_head.name == 'GLOBAL':
+            idx = self.scope_container.get_symbol(node_name)
+            if idx == '-1':
                 self.__gen_code_assign(node_name)
-            elif  self.scope_container.current_scope_head.name == LOCAL:
-                self.scope_container.current_scope_head.var_id +=1
-                self.scope_container.current_scope_head._table[node_name].var_id = self.scope_container.current_scope_head.var_id 
+            else:
+                self.__gen_code_change_stack_var(idx)
+
 
         if isinstance(node, RelationalEqualityOp):
 
@@ -832,17 +867,12 @@ class Compile:
             self.__gen_code_post_stack_block()
 
         if isinstance(node , Var):
-            if self.scope_container.current_scope_head.name == 'GLOBAL':
-                # If its directly started in global
+            idx = self.scope_container.get_symbol(node.name)
+            if idx == '-1':
+                # Means the search ended in global scope 
                 self.__gen_code_get_global_variable(node.name)
-            elif self.scope_container.current_scope_head.name == LOCAL:
-                # Started from some local scope
-                idx = self.scope_container.get_symbol(node.name)
-                if idx == '-1':
-                    # Means the search ended in global scope 
-                    self.__gen_code_get_global_variable(node.name)
-                else:
-                    self.__gen_code_get_local_variable(idx)
+            else:
+                self.__gen_code_get_local_variable(idx)
         
         if isinstance(node ,Print):
             self.visit(node.value)
