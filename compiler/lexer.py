@@ -1,4 +1,4 @@
-from componenets import Token, TokConsts, ErrWarnHandler, DATATYPES, RESERVED_KEYWORDS
+from components import Token, TokConsts, ErrWarnHandler, DATATYPES, RESERVED_KEYWORDS
 class Lexer:
     def __init__(self, strcode: str) -> None:
         self.strcode = strcode
@@ -158,12 +158,9 @@ class Lexer:
             if self.curr_char == TokConsts.RCURLY:
                 self.consume_char()
                 return Token(TokConsts.RCURLY, TokConsts.RCURLY)
-
-            # print('here')
-            # raise Exception(self.curr_char)
+            
             self.errhandler.unknown_syntax(self.curr_char, self.lineno)
             self.consume_char()
-            # print('ine ere')
             return Token(TokConsts.UNKNOWN,TokConsts.UNKNOWN)
         
         return Token(TokConsts.EOF,TokConsts.EOF)

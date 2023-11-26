@@ -1,4 +1,4 @@
-from componenets import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
+from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
     Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, ScopeContainer, SymScope
 from typing import Union
 

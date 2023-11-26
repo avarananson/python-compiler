@@ -5,7 +5,7 @@ from lexer import Lexer
 from parser import Parser
 from interpreter import Interpreter
 from compiler import Compile
-from componenets import TokConsts
+from components import TokConsts
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -38,7 +38,7 @@ def main():
     elif args.compile:
         compiler = Compile()
         compiler.compile_ast(root)
-        os.system('nasm -f elf64 -o hello.o compile.asm && ld -o hello hello.o && ./hello')
+        os.system('nasm -f elf64 -o out.o compile.asm && ld -o out out.o && ./out')
         # os.system('nasm -f macho64 -o hello.o compile.asm && ld -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem -arch x86_64 -macosx_version_min 10.13 -o hello hello.o && ./hello')
     
 

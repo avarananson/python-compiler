@@ -1,5 +1,5 @@
 
-from componenets import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
+from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
     Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, CompileScopeContainer, BssData, SymScope
 from asm_helper import *
 from typing import Union
