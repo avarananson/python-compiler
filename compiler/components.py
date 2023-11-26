@@ -27,12 +27,13 @@ class TokConsts(str, Enum):
     ELSE = 'else'
     LCURLY = '{'
     RCURLY = '}'
+    WHILE = 'while'
     UNKNOWN = 'unknown'
 
 
 #Define supported datatypes
 DATATYPES = set(['int'])
-RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE])
+RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE, TokConsts.WHILE])
 
 @dataclass
 class SymScope:
