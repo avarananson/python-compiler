@@ -33,12 +33,44 @@ class TokConsts(str, Enum):
     ELSE = 'else'
     LCURLY = '{'
     RCURLY = '}'
+    UNKNOWN = 'unknown'
 
 
 #Define supported datatypes
 DATATYPES = set(['int'])
 RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE])
  
+class ErrWarnHandler:
+    # err_count = 0
+    def __init__(self) -> None:
+        self.err_count = 0
+        self.errors = []
+        self.warnings = []
+    @staticmethod
+    def syntaxerror(msg):
+        return f'SyntaxError: {msg}'
+    def inc_error(func):
+        def wrap(self, *args, **kwargs):
+            self.err_count +=1
+            # print(self.errors, args[0])
+            ret = func(self, *args, **kwargs)
+            print(ret)
+            exit(1)
+        return wrap
+    
+    @inc_error
+    def unknown_syntax(self, char, lineno):
+        err = f'Unrecognized syntax `{char}` at line {lineno}.'
+        self.errors.append(self.syntaxerror(err))
+        return err
+    @inc_error
+    def unexpected_syntax(self, found, expected, lineno):
+        err = f'Unexpected syntax found  at line {lineno}.'
+        self.errors.append(self.syntaxerror(err))
+        return err
+        # print()
+
+
 @dataclass
 class SymScope:
     name:str = LOCAL
@@ -252,6 +284,8 @@ class Lexer:
         self.identified_str_token = None
         self.curr_pos = 0
         self.curr_char = self.strcode[self.curr_pos]
+        self.errhandler = ErrWarnHandler()
+        self.lineno = 1
 
     def raise_error(self, msg:str, exit:int) -> None:
         if exit:
@@ -269,7 +303,10 @@ class Lexer:
         return curr_char
 
     def is_whitespace(self) -> bool:
-        return self.curr_char.isspace()
+        isspace = self.curr_char.isspace()
+        if self.curr_char == '\n':
+            self.lineno +=1
+        return isspace
     
     def skip_whitespace(self) -> None:
         self.consume_char()
@@ -305,6 +342,9 @@ class Lexer:
             return True
         return False
     
+    def move_to_next_line(self) -> None:
+        pass
+        
     def skip_comments(self) -> None:
         while self.curr_char != TokConsts.EOF and self.curr_char != '\n': 
             self.consume_char()
@@ -397,11 +437,13 @@ class Lexer:
                 self.consume_char()
                 return Token(TokConsts.RCURLY, TokConsts.RCURLY)
 
-
-
-            self.raise_error(f'Unrecognized syntax "{self.curr_char}" at position {self.curr_pos }', exit=1)
-
-            
+            # print('here')
+            # raise Exception(self.curr_char)
+            self.errhandler.unknown_syntax(self.curr_char, self.lineno)
+            self.consume_char()
+            # print('ine ere')
+            return Token(TokConsts.UNKNOWN,TokConsts.UNKNOWN)
+        
         return Token(TokConsts.EOF,TokConsts.EOF)
             
 class Parser:
@@ -409,6 +451,7 @@ class Parser:
     def __init__(self, lexer:Lexer) -> None:
         self.curr_token = lexer.get_next_token()
         self.lexer = lexer
+        self.prev = 0
     
     def raise_error(self, msg:str, exit:int) -> None:
         if exit:
@@ -417,10 +460,13 @@ class Parser:
             print(msg)
 
     def consume_token(self, TYPE:str) -> None:
-        if self.curr_token.type != TYPE:
+        
+        if self.curr_token.type != TYPE and self.curr_token.type != TokConsts.UNKNOWN:
             # print(self.curr_token.type ,TYPE)
-            self.raise_error(f'Syntax error at position {self.lexer.curr_pos }', exit=1)
+            # self.raise_error(f'Syntax error at position {self.lexer.curr_pos }', exit=1)
+            self.lexer.errhandler.unexpected_syntax(self.curr_token.type,TYPE, self.prev if TYPE == ';' else self.lexer.lineno)
         else:
+            self.prev = self.lexer.lineno
             self.curr_token = self.lexer.get_next_token()
 
     def parse(self) -> Main:
@@ -433,7 +479,7 @@ class Parser:
     
     def statements(self) ->None:
         _statements = []
-        while self.curr_token.type != TokConsts.EOF:
+        while self.curr_token.type != TokConsts.EOF and self.curr_token.type != TokConsts.UNKNOWN:
             _statements.append(self.statement())
         return _statements
 
@@ -450,7 +496,11 @@ class Parser:
             return(self.ifstmt())
 
         else:
-            self.raise_error(f'Unrecognized statement {self.curr_token} .', exit=1)
+            # print('in'
+            # )
+            self.lexer.errhandler.unexpected_syntax(self.curr_token.type, str((TokConsts.DATATYPE,TokConsts.IDENTIFIER,TokConsts.PRINT,TokConsts.IF)), self.lexer.lineno)
+            self.curr_token = Token(TokConsts.UNKNOWN, TokConsts.UNKNOWN)
+            return None
 
 
     def ifstmt(self) -> None:
@@ -912,6 +962,9 @@ def main():
     lexer  = Lexer(code)
     parser = Parser(lexer=lexer)
     root = parser.parse()
+    # if parser.lexer.errhandler.err_count > 0:
+    #     print('\n'.join(parser.lexer.errhandler.errors))
+    #     return 1
     if args.debug:
         for child in root.children:
             print(child)
