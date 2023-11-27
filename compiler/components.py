@@ -49,9 +49,23 @@ class ErrWarnHandler:
         self.err_count = 0
         self.errors = []
         self.warnings = []
+
     @staticmethod
     def syntaxerror(msg):
         return f'SyntaxError: {msg}'
+    
+    @staticmethod
+    def varnotdef(msg):
+        return f'VarNotDefined: {msg}'
+    
+    @staticmethod
+    def varalreadydef(msg):
+        return f'VarAlreadyDefined: {msg}'
+    
+    @staticmethod
+    def varundeclared(msg):
+        return f'VarUndeclared: {msg}'
+    
     def inc_error(func):
         def wrap(self, *args, **kwargs):
             self.err_count +=1
@@ -62,24 +76,44 @@ class ErrWarnHandler:
         return wrap
     
     @inc_error
-    def unknown_syntax(self, char, lineno):
+    def unknown_syntax(self, char:str, lineno:int) -> str:
         err = f'Unrecognized syntax `{char}` at line {lineno}.'
         self.errors.append(self.syntaxerror(err))
         return err
+    
     @inc_error
-    def unexpected_syntax(self, found, expected, lineno):
+    def unexpected_syntax(self, found:str, expected:str, lineno:int) -> str:
         err = f'Unexpected syntax found  at line {lineno}.'
         self.errors.append(self.syntaxerror(err))
         return err
-        # print()
+    
+    @inc_error
+    def variable_not_defined(self, sym:str) -> str:
+        err = f'`{sym}` not defined in the scope.'
+        self.errors.append(self.varnotdef(err))
+        return err
+    
+    @inc_error
+    def variable_already_defined(self, sym:str) -> str:
+        err = f'`{sym}` already defined in the scope. '
+        self.errors.append(self.varalreadydef(err))
+        return err
+    
+    @inc_error
+    def variable_undeclared(self, sym:str) -> str:
+        err = f'`{sym}` undeclared. '
+        self.errors.append(self.varundeclared(err))
+        return err
 
 class ScopeContainer:
     # Linked list ds for storing block scopes
     # |local_scope2| -->(prev) |local_scope1| -->(prev) |global_scope|
+    
     def __init__(self) -> None:
         self.current_scope_head = None
         self.prev = None
         self.total_active_scopes = 0
+        self.errhandler = ErrWarnHandler()
     
     def add_scope(self, scope:SymScope) -> None:
         if not self.current_scope_head and not self.prev:
@@ -94,7 +128,7 @@ class ScopeContainer:
 
     def declare_symbol_to_head(self,node_name:str, node:Any) -> None:
         if node_name in self.current_scope_head._table:
-            raise ValueError(f'ERROR: {node_name} symbol already defined in the scope. ')
+            self.errhandler.variable_already_defined(node_name)
         self.current_scope_head._table[node_name] = node
         # self.current_scope_head._table[node_name].value = 0  # By default we assign not garbage, but 0
 
@@ -104,7 +138,7 @@ class ScopeContainer:
             if name in curr_scope._table:
                 return curr_scope._table[name]
             curr_scope = curr_scope.prev
-        raise ValueError(f'ERROR: {name} symbol not defined. ')
+        self.errhandler.variable_not_defined(name)
     
     def assign_symbol(self, name:str, value:int) -> None:
         curr_scope = self.current_scope_head
@@ -120,7 +154,7 @@ class ScopeContainer:
                 break
             curr_scope = curr_scope.prev
         else:
-            raise ValueError(f'ERROR: Assigning to an undeclared variable {name}.')
+            self.errhandler.variable_undeclared(name)
 
     def remove_scope(self) -> None:
         if self.current_scope_head:
@@ -173,7 +207,7 @@ class CompileScopeContainer(ScopeContainer):
             # print(f'found varibale in GLOBAL scope {curr_scope.level}',name)
             return '-1'                # IF STILL NOT FOUND AND NOW ITS IN GLOBAL NOW
         
-        raise ValueError(f'ERROR: {name} symbol not defined. ')
+        self.errhandler.variable_not_defined(name)
 
 @dataclass
 class BssData:
