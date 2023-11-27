@@ -1,5 +1,5 @@
-from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
-    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts
+from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP, NumLiteral, \
+    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, WhileBlock
 from lexer import Lexer
 from typing import List ,Union, Any
 
@@ -51,6 +51,8 @@ class Parser:
             return(self.eprint())
         elif self.curr_token.type == TokConsts.IF:
             return(self.ifstmt())
+        elif self.curr_token.type == TokConsts.WHILE:
+            return(self.whilestmt())
 
         else:
             # print('in'
@@ -59,6 +61,15 @@ class Parser:
             self.curr_token = Token(TokConsts.UNKNOWN, TokConsts.UNKNOWN)
             return None
 
+    def whilestmt(self) -> None:
+        self.consume_token(TokConsts.WHILE)
+        condition = self.logical_or()
+        self.consume_token(TokConsts.LCURLY)
+        block = []
+        while self.curr_token.type != TokConsts.RCURLY:
+            block.append(self.statement())
+        self.consume_token(TokConsts.RCURLY)
+        return WhileBlock(condition, TokConsts.WHILE, block)
 
     def ifstmt(self) -> None:
         self.consume_token(TokConsts.IF)

@@ -258,6 +258,15 @@ class IfElseBlock:
     def __str__(self) -> str:
         return f'IfElseBlock  instance {self.lchild} {self.token} {self.rchild}'
 
+class WhileBlock:
+    def __init__(self, condition,type, block ) -> None:
+        self.lchild  =condition
+        self.token = type
+        self.rchild = block
+
+    def __str__(self) -> str:
+        return f'WhileBlock  instance {self.lchild} {self.token} {self.rchild}'
+
 
 class NumLiteral(AST):
     def __init__(self, value) -> None:

@@ -1,5 +1,5 @@
 from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
-    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, ScopeContainer, SymScope
+    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, ScopeContainer, SymScope, WhileBlock
 from typing import Union
 
 class Interpreter:
@@ -81,7 +81,13 @@ class Interpreter:
                     self.visit(stmt)
                 self.scope_container.remove_scope()
 
-            
+        if isinstance(node , WhileBlock):
+            while self.visit(node.lchild):
+                self.scope_container.add_scope(SymScope())
+                for stmt in node.rchild:
+                    self.visit(stmt)
+                self.scope_container.remove_scope()
+
         if isinstance(node , Var) :
             return self.scope_container.get_symbol(node.name).value
         
