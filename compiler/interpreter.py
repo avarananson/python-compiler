@@ -47,11 +47,8 @@ class Interpreter:
             return value
         
         if isinstance(node, RelationalEqualityOp):
-            # print(n÷ßode)
-            # print('node',node, '->')
-            # print( node.chain_count)
+
             if getattr(node,'chain_count_eq',0)>1 or getattr(node,'chain_count_rel',0)>1:
-                
                 self.raise_error(f'Chained equality/comparison operators are found. It could result in ambigius results',exit=1)
             if node.token.type == TokConsts.GREATER:
                 return int((self.visit(node.lchild) >  self.visit(node.rchild)))
