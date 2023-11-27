@@ -91,4 +91,3 @@ class Interpreter:
         if isinstance(node ,Print):
             print(self.visit(node.value))
 
-
