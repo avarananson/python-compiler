@@ -1,6 +1,6 @@
 
-from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
-    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, CompileScopeContainer, BssData, SymScope
+from components import Main, IfElseBlock, WhileBlock, VarAssign,VarDeclare, LogicalOP, NumLiteral, \
+    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, CompileScopeContainer, BssData, SymScope, LOCAL
 from asm_helper import *
 from typing import Union
 
@@ -95,6 +95,9 @@ class Compile:
 
     def __gen_code_change_stack_var(self, idx:str) -> None:
         self.asmList.append(changestackvarinstr.format(idx))
+    
+    def __gen_code_je(self, label:str) -> None:
+        self.asmList.append(jeinstr.format(label))
 
 
 
@@ -157,6 +160,29 @@ class Compile:
             if node.token.type == TokConsts.LOGICAL_AND:
                 self.__gen_code_logical_op(self.visit(node.lchild) , self.visit(node.rchild), TokConsts.LOGICAL_AND)
         
+        if isinstance(node , WhileBlock):
+            self.visit(node.lchild)
+            self.__gen_code_check_block_condition()
+            whilelabel = self.gen_label()
+            falllabel = self.gen_label()
+            self.__gen_code_jne(falllabel)
+            self.__gen_code_add_label(whilelabel)
+            
+            self.__gen_code_pre_stack_block()
+            self.scope_container.add_scope(SymScope())
+             
+            for stmt in node.rchild:
+                self.visit(stmt)
+            self.scope_container.remove_scope()
+            self.__gen_code_post_stack_block()
+            self.visit(node.lchild)
+            self.__gen_code_check_block_condition()
+            self.__gen_code_je(whilelabel)
+            self.__gen_code_add_label(falllabel)
+
+            
+
+
         if isinstance(node, IfElseBlock):
             self.visit(node.lchild)
             self.__gen_code_check_block_condition()
