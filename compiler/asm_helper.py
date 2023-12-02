@@ -137,3 +137,9 @@ changestackvarinstr = """ ; change stack var
     pop rax
     mov [rbp{}],  rax
 """
+whileblockcondition = """ ; while loop condition
+    cmp qword [rsp], 1  
+"""
+jeinstr = """ ;je
+    je {}
+"""
