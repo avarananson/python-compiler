@@ -1,5 +1,5 @@
 from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP,NumLiteral, \
-    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, ScopeContainer, SymScope, WhileBlock
+    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, ScopeContainer, SymScope, WhileBlock, StringLiteral
 from typing import Union
 
 class Interpreter:
@@ -17,7 +17,7 @@ class Interpreter:
             raise Exception(msg)
         else:
              print(msg)
-
+    # @profile
     def visit(self, node: Union[BinOp, NumLiteral, VarAssign, RelationalEqualityOp, LogicalOP, Var,Print]) -> Union[int, str, None]:
 
         if isinstance(node, BinOp):
@@ -31,6 +31,9 @@ class Interpreter:
                 return (self.visit(node.lchild) *  self.visit(node.rchild))
             
         if isinstance(node, NumLiteral):
+            return node.value
+        
+        if isinstance(node, StringLiteral):
             return node.value
          
         if isinstance(node, VarDeclare):

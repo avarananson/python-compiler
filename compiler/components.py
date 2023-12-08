@@ -29,10 +29,11 @@ class TokConsts(str, Enum):
     RCURLY = '}'
     WHILE = 'while'
     UNKNOWN = 'unknown'
+    STRING = 'string'
 
 
 #Define supported datatypes
-DATATYPES = set(['int'])
+DATATYPES = set(['int', 'str'])
 RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE, TokConsts.WHILE])
 
 @dataclass
@@ -309,4 +310,12 @@ class NumLiteral(AST):
     
     def __str__(self) -> str:
         return f'Num literal instance {self.value}'
+    
+class StringLiteral(AST):
+    def __init__(self, value) -> None:
+        super().__init__()
+        self.value = value
+    
+    def __str__(self) -> str:
+        return f'String literal instance {self.value}'
     

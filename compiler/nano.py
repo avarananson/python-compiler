@@ -22,7 +22,7 @@ def main():
     if args.debug:
         while 1:
             x = lexer.get_next_token()
-            print(x)
+            print('token',x)
             if x.value == TokConsts.EOF:
                 break
         # return

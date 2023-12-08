@@ -1,5 +1,5 @@
 from components import Main, IfElseBlock, VarAssign,VarDeclare, LogicalOP, NumLiteral, \
-    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, WhileBlock
+    Print, Var,BinOp, RelationalEqualityOp, Token ,TokConsts, WhileBlock, StringLiteral
 from lexer import Lexer
 from typing import List ,Union, Any
 
@@ -55,8 +55,6 @@ class Parser:
             return(self.whilestmt())
 
         else:
-            # print('in'
-            # )
             self.lexer.errhandler.unexpected_syntax(self.curr_token.type, str((TokConsts.DATATYPE,TokConsts.IDENTIFIER,TokConsts.PRINT,TokConsts.IF)), self.lexer.lineno)
             self.curr_token = Token(TokConsts.UNKNOWN, TokConsts.UNKNOWN)
             return None
@@ -177,6 +175,10 @@ class Parser:
             token = self.curr_token
             self.consume_token(TokConsts.INTEGER)
             return NumLiteral(token.value)
+        elif self.curr_token.type == TokConsts.STRING:
+            token = self.curr_token
+            self.consume_token(TokConsts.STRING)
+            return StringLiteral(token.value)
         elif self.curr_token.type == TokConsts.IDENTIFIER:
             token = self.curr_token
             self.consume_token(TokConsts.IDENTIFIER)

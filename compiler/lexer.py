@@ -39,6 +39,14 @@ class Lexer:
         while self.curr_char and not self.is_whitespace() and self.curr_char.isdigit():
             res += self.consume_char()
         return int(res)
+    
+    def string(self) -> str:
+        res = ''
+        self.consume_char()
+        while  self.curr_char != TokConsts.EOF and self.curr_char != '"':
+            res += self.consume_char()
+        self.consume_char()
+        return res
             
     def peek(self) -> str:
         if self.curr_pos < self.codelen-1:
@@ -70,7 +78,7 @@ class Lexer:
     def skip_comments(self) -> None:
         while self.curr_char != TokConsts.EOF and self.curr_char != '\n': 
             self.consume_char()
-
+    
     def get_next_token(self) -> Token:
         while self.curr_char != TokConsts.EOF:
             if self.is_whitespace():
@@ -79,8 +87,12 @@ class Lexer:
             if self.is_comment():
                 self.skip_comments()
                 continue
+
             if self.curr_char.isdigit():
                 return Token(TokConsts.INTEGER, self.integer())
+            
+            if self.curr_char == '"':
+                return Token(TokConsts.STRING, self.string())
             
             if self.curr_char.isalpha():
                 token_word = self.get_next_token_word()
