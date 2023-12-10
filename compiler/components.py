@@ -3,6 +3,7 @@ from typing import List ,Union, Any
 from enum import Enum
 UNKNOWN, LOCAL = 'unknown', 'local'
 
+
 class TokConsts(str, Enum):
     INTEGER = 'integer'
     PLUS =  '+'
@@ -35,6 +36,8 @@ class TokConsts(str, Enum):
 #Define supported datatypes
 DATATYPES = set(['int', 'str'])
 RESERVED_KEYWORDS = set([TokConsts.PRINT, TokConsts.IF, TokConsts.ELSE, TokConsts.WHILE])
+SUPPORTED_OPERATIONS = {'int':[TokConsts.DIV, TokConsts.EQUAL, TokConsts.GREATER, TokConsts.LESSTHAN, TokConsts.MULT, TokConsts.LOGICAL_AND, TokConsts.LOGICAL_OR, TokConsts.LESSTHAN, TokConsts.PLUS, TokConsts.SUB],
+                        'str': [TokConsts.EQUAL, TokConsts.PLUS, TokConsts.NT_EQUAL]}
 
 @dataclass
 class SymScope:
@@ -57,15 +60,23 @@ class ErrWarnHandler:
     
     @staticmethod
     def varnotdef(msg):
-        return f'VarNotDefined: {msg}'
+        return f'VarNotDefinedError: {msg}'
     
     @staticmethod
     def varalreadydef(msg):
-        return f'VarAlreadyDefined: {msg}'
+        return f'VarAlreadyDefinedError: {msg}'
     
     @staticmethod
     def varundeclared(msg):
-        return f'VarUndeclared: {msg}'
+        return f'VarUndeclaredError: {msg}'
+
+    @staticmethod
+    def operandtypeerror(msg):
+        return f'OperandTypeError: {msg}'
+    
+    @staticmethod
+    def operationnotsupported(msg):
+        return f'OperationError: {msg}'
     
     def inc_error(func):
         def wrap(self, *args, **kwargs):
@@ -79,31 +90,50 @@ class ErrWarnHandler:
     @inc_error
     def unknown_syntax(self, char:str, lineno:int) -> str:
         err = f'Unrecognized syntax `{char}` at line {lineno}.'
-        self.errors.append(self.syntaxerror(err))
+        err = self.syntaxerror(err)
+        self.errors.append(err)
         return err
     
     @inc_error
     def unexpected_syntax(self, found:str, expected:str, lineno:int) -> str:
         err = f'Unexpected syntax found  at line {lineno}.'
-        self.errors.append(self.syntaxerror(err))
+        err = self.syntaxerror(err)
+        self.errors.append(err)
         return err
     
     @inc_error
     def variable_not_defined(self, sym:str) -> str:
         err = f'`{sym}` not defined in the scope.'
-        self.errors.append(self.varnotdef(err))
+        err= self.varnotdef(err)
+        self.errors.append(err)
         return err
     
     @inc_error
     def variable_already_defined(self, sym:str) -> str:
         err = f'`{sym}` already defined in the scope. '
-        self.errors.append(self.varalreadydef(err))
+        err = self.varalreadydef(err)
+        self.errors.append(err)
         return err
     
     @inc_error
     def variable_undeclared(self, sym:str) -> str:
         err = f'`{sym}` undeclared. '
-        self.errors.append(self.varundeclared(err))
+        err = self.varundeclared(err)
+        self.errors.append(err)
+        return err
+
+    @inc_error
+    def operand_type_error(self, sym:str) -> str:
+        err = f'`{sym}` should be applied for same types. '
+        err = self.operandtypeerror(err)
+        self.errors.append(err)
+        return err
+    
+    @inc_error
+    def operation_not_supported(self, sym:str) -> str:
+        err = f'`{sym}` not supported between operands.'
+        err = self.operationnotsupported(err)
+        self.errors.append(err)
         return err
 
 class ScopeContainer:
@@ -230,6 +260,11 @@ class Token:
 class AST:
     pass
 
+class Result:
+    def __init__(self, value , type) -> None:
+        self.type  =type
+        self.value = value
+
 class Print:
     def __init__(self, value) -> None:
         self.value = value
@@ -307,6 +342,7 @@ class NumLiteral(AST):
     def __init__(self, value) -> None:
         super().__init__()
         self.value = value
+        self.type = 'int'
     
     def __str__(self) -> str:
         return f'Num literal instance {self.value}'
@@ -315,6 +351,7 @@ class StringLiteral(AST):
     def __init__(self, value) -> None:
         super().__init__()
         self.value = value
+        self.type = 'str'
     
     def __str__(self) -> str:
         return f'String literal instance {self.value}'
